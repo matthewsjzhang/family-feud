@@ -5,8 +5,17 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { BoardEvent } from "../app/boardSnapshot";
 import { createSoundPlayer, type AudioContextCtor, type SoundPlayer } from "./player";
+import type { SoundName } from "./sounds";
 
 export const SOUND_STORAGE_KEY = "feud.sound";
+
+/**
+ * Recorded files that replace synthesized sounds when present (served from public/sounds/,
+ * which git ignores). See public/sounds/README.md.
+ */
+export const BOARD_SAMPLES: Partial<Record<SoundName, string>> = {
+  strike: `${import.meta.env.BASE_URL}sounds/strike.mp3`,
+};
 
 interface SoundPrefs {
   muted: boolean;
@@ -58,7 +67,7 @@ export interface UseBoardSoundOptions {
 export function useBoardSound(options: UseBoardSoundOptions = {}): BoardSound {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const [player] = useState<SoundPlayer>(() =>
-    createSoundPlayer({ ...loadPrefs(), AudioContext: options.AudioContext, onChange: rerender }),
+    createSoundPlayer({ ...loadPrefs(), AudioContext: options.AudioContext, samples: BOARD_SAMPLES, onChange: rerender }),
   );
   const playerRef = useRef(player);
 

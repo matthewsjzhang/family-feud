@@ -6,3 +6,8 @@ __pycache__/
 .DS_Store
 test-results/
 playwright-report/
+
+# Recorded sound effects you supply (e.g. the official buzzer). Kept local: they may be copyrighted.
+public/sounds/*.mp3
+public/sounds/*.wav
+public/sounds/*.ogg

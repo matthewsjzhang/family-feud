@@ -57,6 +57,8 @@ export interface AudioContextLike {
   createBiquadFilter(): FilterLike;
   createBuffer(channels: number, length: number, sampleRate: number): BufferLike;
   createBufferSource(): BufferSourceLike;
+  /** Turns an audio file (e.g. an MP3) into a playable buffer. */
+  decodeAudioData(data: ArrayBuffer): Promise<BufferLike>;
 }
 
 /** Schedules one sound starting at `at` (context seconds). `volume` is 0..1. */

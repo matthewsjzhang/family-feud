@@ -4,7 +4,7 @@
 // unlock() must be called from a click/keypress on the board.
 
 import type { BoardEvent } from "../app/boardSnapshot";
-import { SOUNDS, soundForEvent, type AudioContextLike, type SoundName } from "./sounds";
+import { SOUNDS, soundForEvent, type AudioContextLike, type BufferLike, type SoundName } from "./sounds";
 
 export type AudioContextCtor = new () => AudioContextLike;
 
@@ -17,6 +17,14 @@ export interface SoundPlayerOptions {
   spacingMs?: number;
   /** Called when unlocked/muted/volume change (lets React re-render). */
   onChange?: () => void;
+  /**
+   * Recorded audio files to use instead of synthesized sounds, by sound name
+   * (e.g. a real strike buzzer). A sound plays synthesized until its file has
+   * loaded, and for good if the file is missing or can't be decoded.
+   */
+  samples?: Partial<Record<SoundName, string>>;
+  /** Defaults to the browser's fetch; injectable for tests. */
+  fetch?: (url: string) => Promise<Response>;
 }
 
 export interface SoundPlayer {
@@ -33,6 +41,8 @@ export interface SoundPlayer {
   readonly unlocked: boolean;
   /** False when the browser has no Web Audio at all. */
   readonly supported: boolean;
+  /** Resolves once every recorded sample has loaded or failed (never rejects). */
+  samplesLoaded(): Promise<void>;
 }
 
 // Scheduling slightly ahead of "now" avoids clipping the attack of the first note.
@@ -54,16 +64,48 @@ export function createSoundPlayer(options: SoundPlayerOptions = {}): SoundPlayer
   let ctx: AudioContextLike | null = null;
   let failed = false;
   const changed = () => options.onChange?.();
+  const recordings = new Map<SoundName, BufferLike>();
+  let loading: Promise<void> = Promise.resolve();
+
+  /** Fetch and decode the sample files. A failure just leaves that sound synthesized. */
+  function loadSamples(c: AudioContextLike): Promise<void> {
+    const fetchFile = options.fetch ?? (typeof fetch === "function" ? (url: string) => fetch(url) : null);
+    const entries = Object.entries(options.samples ?? {}) as [SoundName, string][];
+    if (!fetchFile) return Promise.resolve();
+    return Promise.all(
+      entries.map(async ([name, url]) => {
+        try {
+          const response = await fetchFile(url);
+          if (!response.ok) return;
+          recordings.set(name, await c.decodeAudioData(await response.arrayBuffer()));
+        } catch {
+          // Missing, offline or undecodable: keep the synthesized sound.
+        }
+      }),
+    ).then(() => undefined);
+  }
 
   function context(): AudioContextLike | null {
     if (ctx || failed || !Ctor) return ctx;
     try {
       ctx = new Ctor();
+      // Decoding works while the context is still suspended, so load right away.
+      loading = loadSamples(ctx);
     } catch {
       // e.g. too many contexts, or audio blocked by policy: stay silent.
       failed = true;
     }
     return ctx;
+  }
+
+  function playRecording(c: AudioContextLike, buffer: BufferLike, at: number): void {
+    const source = c.createBufferSource();
+    const gain = c.createGain();
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(c.destination);
+    source.start(at);
   }
 
   const running = () => ctx?.state === "running";
@@ -75,7 +117,10 @@ export function createSoundPlayer(options: SoundPlayerOptions = {}): SoundPlayer
     // fire at once when it resumes, so skip sounds until it's unlocked.
     if (!c || c.state !== "running") return;
     try {
-      SOUNDS[name](c, c.currentTime + LOOKAHEAD + offsetSec, volume);
+      const at = c.currentTime + LOOKAHEAD + offsetSec;
+      const recording = recordings.get(name);
+      if (recording) playRecording(c, recording, at);
+      else SOUNDS[name](c, at, volume);
     } catch {
       // A sound must never break the board.
     }
@@ -133,5 +178,6 @@ export function createSoundPlayer(options: SoundPlayerOptions = {}): SoundPlayer
     get supported() {
       return !!Ctor && !failed;
     },
+    samplesLoaded: () => loading,
   };
 }

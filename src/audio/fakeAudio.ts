@@ -90,6 +90,7 @@ export class FakeAudioContext implements AudioContextLike {
   static reset(initialState: AudioContextState = "suspended") {
     FakeAudioContext.instances = [];
     FakeAudioContext.initialState = initialState;
+    FakeAudioContext.failDecode = false;
   }
 
   resume() {
@@ -120,6 +121,18 @@ export class FakeAudioContext implements AudioContextLike {
   createBuffer(_channels: number, length: number): BufferLike {
     const data = new Float32Array(length);
     return { getChannelData: () => data };
+  }
+
+  /** Audio files handed to decodeAudioData, and the buffers it returned. */
+  readonly decoded: { data: ArrayBuffer; buffer: BufferLike }[] = [];
+  /** Set to make decoding fail, like a corrupt file. */
+  static failDecode = false;
+  decodeAudioData(data: ArrayBuffer): Promise<BufferLike> {
+    if (FakeAudioContext.failDecode) return Promise.reject(new Error("decode failed"));
+    const samples = new Float32Array(4);
+    const buffer: BufferLike = { getChannelData: () => samples };
+    this.decoded.push({ data, buffer });
+    return Promise.resolve(buffer);
   }
 
   /** All sources (oscillators and noise) in creation order. */

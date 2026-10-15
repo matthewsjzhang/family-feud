@@ -13,6 +13,86 @@ const startTimes = (c: FakeAudioContext) => [...new Set(c.sources.map((s) => s.s
 
 beforeEach(() => FakeAudioContext.reset("suspended"));
 
+describe("recorded samples (e.g. a real strike buzzer MP3)", () => {
+  const mp3 = new ArrayBuffer(8);
+  const okFetch = () => vi.fn(async () => ({ ok: true, arrayBuffer: async () => mp3 }) as unknown as Response);
+
+  async function readyPlayer(fetchImpl: typeof fetch, volume = 0.8) {
+    const player = createSoundPlayer({
+      AudioContext: FakeAudioContext,
+      samples: { strike: "sounds/strike.mp3" },
+      fetch: fetchImpl,
+      volume,
+    });
+    await player.unlock();
+    await player.samplesLoaded();
+    return player;
+  }
+
+  it("loads the file once and plays it for the strike instead of the synthesized buzzer", async () => {
+    const fetchImpl = okFetch();
+    const player = await readyPlayer(fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith("sounds/strike.mp3");
+    const c = ctx();
+    expect(c.decoded).toHaveLength(1);
+
+    player.playEvent({ type: "strike", count: 2 });
+    expect(c.oscillators).toHaveLength(0);
+    expect(c.bufferSources).toHaveLength(1);
+    expect(c.bufferSources[0]!.buffer).toBe(c.decoded[0]!.buffer);
+    expect(c.bufferSources[0]!.startAt).toBeGreaterThanOrEqual(c.currentTime);
+  });
+
+  it("scales the recording with the volume, and plays nothing when muted", async () => {
+    const player = await readyPlayer(okFetch(), 0.5);
+    player.play("strike");
+    expect(ctx().gains.at(-1)!.gain.value).toBeCloseTo(0.5);
+    player.setMuted(true);
+    player.play("strike");
+    expect(ctx().bufferSources).toHaveLength(1);
+  });
+
+  it("keeps the synthesized sounds for everything else", async () => {
+    const player = await readyPlayer(okFetch());
+    player.play("ding");
+    expect(ctx().oscillators.length).toBeGreaterThan(0);
+    expect(ctx().bufferSources.every((s) => s.buffer !== ctx().decoded[0]!.buffer)).toBe(true);
+  });
+
+  it("falls back to the synthesized buzzer when the file is missing or can't be decoded", async () => {
+    const missing = vi.fn(async () => ({ ok: false, arrayBuffer: async () => mp3 }) as unknown as Response);
+    let player = await readyPlayer(missing);
+    player.play("strike");
+    expect(ctx().oscillators.length).toBeGreaterThan(0);
+
+    FakeAudioContext.reset("suspended");
+    FakeAudioContext.failDecode = true;
+    player = await readyPlayer(okFetch());
+    player.play("strike");
+    expect(ctx().oscillators.length).toBeGreaterThan(0);
+
+    FakeAudioContext.reset("suspended");
+    player = await readyPlayer(vi.fn(async () => Promise.reject(new Error("offline"))));
+    player.play("strike");
+    expect(ctx().oscillators.length).toBeGreaterThan(0);
+  });
+
+  it("uses the synthesized buzzer until the file has finished loading", async () => {
+    let finish: (r: Response) => void = () => {};
+    const slow = vi.fn(() => new Promise<Response>((resolve) => (finish = resolve)));
+    const player = createSoundPlayer({ AudioContext: FakeAudioContext, samples: { strike: "s.mp3" }, fetch: slow });
+    await player.unlock();
+    player.play("strike");
+    expect(ctx().oscillators.length).toBeGreaterThan(0);
+    finish({ ok: true, arrayBuffer: async () => mp3 } as unknown as Response);
+    await player.samplesLoaded();
+    const before = ctx().oscillators.length;
+    player.play("strike");
+    expect(ctx().oscillators).toHaveLength(before);
+  });
+});
+
 describe("createSoundPlayer", () => {
   it("accepts the browser's real AudioContext (type-level check)", () => {
     expectTypeOf<typeof AudioContext>().toExtend<AudioContextCtor>();
