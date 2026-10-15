@@ -47,6 +47,12 @@ describe("acceptedSpellings", () => {
     expect(acceptedSpellings("HOW OLD?")).toContain("how old");
   });
 
+  it("shares words across a slash, as a judge would", () => {
+    expect(acceptedSpellings("BRUSH/FLOSS TEETH")).toContain("brush teeth");
+    expect(acceptedSpellings("PROSTHETIC LEG/FOOT")).toContain("prosthetic foot");
+    expect(acceptedSpellings("NO BREATH/MOVEMENT")).toContain("no movement");
+  });
+
   it("leaves a sentence-ending period alone instead of guessing an abbreviation", () => {
     expect(acceptedSpellings("GO TO BED.")).toContain("go to bed");
   });

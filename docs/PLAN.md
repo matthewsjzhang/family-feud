@@ -184,6 +184,15 @@ The project is empty apart from the scraper and the data, so **there are no exis
   1. Normalize answers: lowercase, strip punctuation, make words singular.
   2. Use the accepted spellings from Phase 1.
   3. Match with token overlap plus edit distance.
+  - **Results (done):**
+
+    | Check | Target | Tuning fixture (21 surveys) | Held-out (10 surveys, measured once) |
+    |---|---|---|---|
+    | Regular answers found | ≥ 90% | 169 of 169 | 63 of 67 (94%) |
+    | Suggestions that were right | ≥ 97% | 169 of 169 | 65 of 66 (98.5%) |
+    | Off-board guesses wrongly matched | ≤ 5% | 0 of 28 | 1 of 16 (6.25%) |
+
+    The one held-out mistake was "talks in sleep" matched to CAN'T SLEEP (same last word). Synonyms ("vet", "fireman") are left to the host.
   4. Handle shared words across a slash, which Phase 1 splits literally. For example, `BRUSH/FLOSS TEETH` should also accept "brush teeth", and `PROSTHETIC LEG/FOOT` should also accept "prosthetic foot".
 - **Validate:** a fixture of about 100 real answers from the bank and their likely spoken variants, with a precision target set before tuning.
 

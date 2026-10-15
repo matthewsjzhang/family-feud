@@ -174,6 +174,16 @@ describe("player 2", () => {
     expect(s.players[1].answers[0]!.text).toBeNull();
   });
 
+  it("catches a duplicate worded differently when both mean the same board answer", () => {
+    const pets = { ...survey(0), answers: [{ text: "CAT/KITTEN", points: 40 }, { text: "DOG", points: 30 }] };
+    let s = createFastMoney(RULE, [pets, ...SURVEYS.slice(1)], ["Ann", "Bob"]);
+    s = playTurn(s, ["kitten", "b", "c", "d", "e"], [0, null, null, null, null]);
+    s = run(s, { type: "startPlayer2" }, { type: "startClock" }, say("cats"));
+    expect(s.duplicates).toBe(1);
+    s = run(s, say("dog"));
+    expect(s.players[1].answers[0]!.text).toBe("dog");
+  });
+
   it("only treats it as a duplicate on the same question", () => {
     const s = run(player2(), { type: "pass" }, say("cat"));
     expect(s.duplicates).toBe(0);

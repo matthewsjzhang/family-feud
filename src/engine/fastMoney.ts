@@ -4,7 +4,7 @@
 // answers covered. Repeating player 1's answer gets the double buzzer.
 
 import type { Survey } from "../data/bank";
-import { normalize } from "../data/answers";
+import { sameAnswer } from "./match";
 import type { FastMoneyRule } from "./rules";
 import { IllegalActionError } from "./mainGame";
 
@@ -95,7 +95,7 @@ export function isPlayer1Hidden(state: FastMoneyState): boolean {
 export function isDuplicate(state: FastMoneyState, question: number, text: string): boolean {
   if (state.turn === 0) return false;
   const earlier = state.players[0].answers[question]?.text;
-  return earlier != null && normalize(earlier) === normalize(text);
+  return earlier != null && sameAnswer(state.surveys[question]!.answers, earlier, text);
 }
 
 export function fastMoneyReducer(state: FastMoneyState, action: FastMoneyAction): FastMoneyState {

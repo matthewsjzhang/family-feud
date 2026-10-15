@@ -77,9 +77,27 @@ function expand(text: string): string {
   return tidy(clean(text).replace(/\b([a-z]+)\./g, (word, stem: string) => ABBREVIATIONS[stem] ?? word));
 }
 
+/**
+ * Boards shorten alternatives that share words: "BRUSH/FLOSS TEETH" means
+ * "brush teeth" or "floss teeth"; "PROSTHETIC LEG/FOOT" means "prosthetic foot".
+ * Pair each one-word part with every longer part, swapping its first or last word.
+ */
+function sharedWordForms(parts: string[]): string[] {
+  const forms: string[] = [];
+  for (const short of parts) {
+    if (short.includes(" ")) continue;
+    for (const long of parts) {
+      const words = long.split(" ");
+      if (words.length < 2) continue;
+      forms.push([short, ...words.slice(1)].join(" "), [...words.slice(0, -1), short].join(" "));
+    }
+  }
+  return forms;
+}
+
 /** Every spelling that should count as this board answer. */
 export function acceptedSpellings(boardText: string): string[] {
-  const parts = boardText.split("/");
-  const forms = [...parts.flatMap((p) => [normalize(p), expand(p)]), normalize(boardText)];
+  const parts = boardText.split("/").flatMap((p) => [normalize(p), expand(p)]).filter(Boolean);
+  const forms = [...parts, normalize(boardText), ...sharedWordForms([...new Set(parts)])];
   return [...new Set(forms.filter(Boolean))];
 }
