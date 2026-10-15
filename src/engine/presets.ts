@@ -61,7 +61,9 @@ function isValidPreset(value: unknown): value is GameRules {
   }
 }
 
-const newId = () => `custom-${crypto.randomUUID()}`;
+/** A fresh id for a custom preset. */
+export const newPresetId = () => `custom-${crypto.randomUUID()}`;
+const newId = newPresetId;
 
 export function createPresetStore(storage: PresetStorage): PresetStore {
   const stored = storage.load();

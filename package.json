@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "bank:scrape": "python -I tools/scrape_surveys.py",
-    "bank:verify": "python -I tools/verify_bank.py"
+    "bank:verify": "python -I tools/verify_bank.py",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "react": "^19.3.1",

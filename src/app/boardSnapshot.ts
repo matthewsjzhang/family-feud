@@ -24,7 +24,8 @@ export interface RoundView {
   strikes: number;
   phase: RoundPhase;
   control: Team | null;
-  faceOff: { buzzed: Team | null; players: [string, string] };
+  /** winner: who won the face-off (decides play or pass). */
+  faceOff: { buzzed: Team | null; winner: Team | null; players: [string, string] };
   winner: Team | null;
   awarded: number;
 }
@@ -75,6 +76,7 @@ export function toSnapshot(state: GameState): BoardSnapshot {
       control: r.control,
       faceOff: {
         buzzed: r.faceOff.buzzed,
+        winner: r.faceOff.winner,
         players: [a.players[r.faceOff.players[0]]!, b.players[r.faceOff.players[1]]!],
       },
       winner: r.winner,
