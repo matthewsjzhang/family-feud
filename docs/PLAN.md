@@ -18,10 +18,10 @@ Build a playable Family Feud game that follows the real show's rules, round orde
 | 1 | Round 1 | Single (×1) | 6–8 answers |
 | 2 | Round 2 | Single (×1) | 5–8 answers |
 | 3 | Round 3 | Double (×2) | 4–6 answers |
-| 4+ | Round 4 and on | Triple (×3) | 4–5 answers |
+| 4 | Round 4 | Triple (×3) | 4–5 answers |
 | last | Sudden Death | Triple (×3) | 4–8 answers, only the #1 answer counts |
 
-- Triple rounds keep going until a family reaches 300. If neither family is at 300 after the triple round, Sudden Death decides the game.
+- A family that has 300 or more at the end of any round wins. If neither family is at 300 after the triple round, Sudden Death decides the game. The triple round is not repeated.
 - This table is the **Default** preset. Every value in it can be changed; see "Game rules and presets" below.
 
 **Game rules and presets**
@@ -32,7 +32,7 @@ The engine never hard-codes the round table above. It reads a `GameRules` object
 |---|---|---|
 | Rounds | Add, remove or reorder rounds | 4 rounds, then Sudden Death |
 | Each round | Name, point multiplier (any whole number), survey size range | As in the table above |
-| Last round repeats | Whether the last round repeats until someone reaches the target | On (the triple round repeats) |
+| Last round repeats | Whether the last round repeats until someone reaches the target (only with a target score) | Off |
 | Win condition | First to a target score, or highest score after the last round | First to 300 |
 | Sudden Death | On or off, and its multiplier | On, ×3 |
 | Fast Money | On or off, target, grand prize, $ per point, two timers | On, 200, $20,000, $5, 20 s / 25 s |
@@ -42,9 +42,11 @@ Built-in presets (read-only, but can be copied and edited):
 
 | Preset | Rounds | Win condition |
 |---|---|---|
-| **Default** | Single, Single, Double, Triple (repeats), Sudden Death | First to 300 |
-| **Single points** | Every round ×1, last round repeats, Sudden Death ×1 | First to 300 |
-| **Fixed rounds** | 5 rounds at ×1, no repeats, no Sudden Death | Highest score after round 5 |
+| **Default** | Single, Single, Double, Triple, then Sudden Death | First to 300 |
+| **Single points** | Every round ×1, last round repeats until someone reaches 300 | First to 300 |
+| **Fixed rounds** | 5 rounds at ×1, no repeats; Sudden Death only breaks a tie | Highest score after round 5 |
+
+A rule set must always produce a winner, so the validator requires Sudden Death when the game can otherwise end without one: a target score with no repeating round, or "highest score" (to break ties).
 
 Custom presets:
 - The host can save their own presets under a name, and edit or delete them later. These are stored in the browser's `localStorage`.
