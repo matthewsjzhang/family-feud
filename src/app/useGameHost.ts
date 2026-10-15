@@ -26,6 +26,14 @@ import {
   type FastMoneyAction,
   type FastMoneyState,
 } from "../engine/fastMoney";
+import {
+  createCustomQuestionStore,
+  isCustomId,
+  type CustomQuestionInput,
+  type CustomQuestionStore,
+} from "../data/customQuestions";
+import { localJsonStorage } from "../data/jsonStorage";
+import { createQuestionSetStore, type QuestionSet, type QuestionSetStore } from "../data/questionSets";
 import { recordResult, type ChampionRecord } from "../engine/champions";
 import { matchAnswer, type MatchResult } from "../engine/match";
 import type { GameRules } from "../engine/rules";
@@ -43,11 +51,21 @@ export interface GameSetup {
   families: [FamilySetup, FamilySetup];
   /** Family 1 is the returning champion family (from `GameHost.champion`). */
   championReturning?: boolean;
+  /** A saved question set to play (see data/questionSets.ts); null or missing = random questions. */
+  questionSetId?: string | null;
 }
 
 export interface QuestionBanks {
   main: Survey[];
   suddenDeath: Survey[];
+  /** Questions the host wrote (main-game and Sudden Death); never drawn at random. */
+  custom: Survey[];
+}
+
+/** Which bank a survey plays in: Sudden Death or the main game. */
+export function bankOf(survey: Survey, suddenDeathIds: ReadonlySet<string>): "main" | "suddenDeath" {
+  if (survey.custom) return survey.custom;
+  return suddenDeathIds.has(survey.id) ? "suddenDeath" : "main";
 }
 
 const CHAMPION_KEY = "feud.champion";
@@ -131,6 +149,24 @@ export interface GameHost {
   /** Play this survey (by id) at the next round it fits; replaces any earlier pick. */
   queueSurvey(id: string): void;
   clearQueue(): void;
+  /** Any survey by id: main bank, Sudden Death bank or custom. */
+  findSurvey(id: string): Survey | undefined;
+
+  // Custom questions (saved in the browser)
+  /** Adds a question; returns null and sets lastError if it's invalid. */
+  addCustomQuestion(input: CustomQuestionInput): Survey | null;
+  updateCustomQuestion(id: string, input: CustomQuestionInput): Survey | null;
+  removeCustomQuestion(id: string): void;
+  /** A custom question as editable form input. */
+  toCustomInput(survey: Survey): CustomQuestionInput;
+
+  // Question sets ("preset games": hand-picked questions in order)
+  questionSets: QuestionSet[];
+  /** Adds or replaces a set; returns null and sets lastError if it's invalid. */
+  saveQuestionSet(set: QuestionSet): QuestionSet | null;
+  removeQuestionSet(id: string): void;
+  /** The set the current game plays, if any. */
+  activeQuestionSet: QuestionSet | null;
 
   // Fast Money (after the game is won)
   /** Null unless Fast Money is being played. */
@@ -160,6 +196,15 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
   championRef.current = { champion, championTeam };
   const [retiredChampion, setRetiredChampion] = useState<ChampionRecord | null>(null);
   const [queued, setQueued] = useState<Survey | null>(null);
+  const [customStore] = useState<CustomQuestionStore>(() =>
+    createCustomQuestionStore(localJsonStorage("feud.customQuestions")),
+  );
+  const [customSurveys, setCustomSurveys] = useState<Survey[]>(() => customStore.list());
+  const [setStore] = useState<QuestionSetStore>(() => createQuestionSetStore(localJsonStorage("feud.questionSets")));
+  const [questionSets, setQuestionSets] = useState<QuestionSet[]>(() => setStore.list());
+  const [activeQuestionSet, setActiveQuestionSet] = useState<QuestionSet | null>(null);
+  /** Surveys asked in the current game, so a set's Sudden Death list moves on to the next one. */
+  const askedRef = useRef(new Set<string>());
   /** The latest Fast Money payout in this game, kept after leaving the Fast Money screen. */
   const payoutRef = useRef(0);
   const [history, setHistory] = useState<History<GameState> | null>(null);
@@ -218,7 +263,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         main: createPicker(main, { store: localStorageStore() }),
         suddenDeath: createPicker(suddenDeath, { store: localStorageStore("feud.usedSuddenDeath") }),
       };
-      setBanks({ main, suddenDeath });
+      setBanks({ main, suddenDeath, custom: [] });
     });
     return () => {
       cancelled = true;
@@ -286,6 +331,13 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
     return () => window.clearInterval(timer);
   }, [clockRunning, commitFastMoney]);
 
+  const allBanks: QuestionBanks | null = banks && { ...banks, custom: customSurveys };
+  const suddenDeathIds = new Set(banks?.suddenDeath.map((s) => s.id));
+  const findSurvey = (id: string): Survey | undefined =>
+    customSurveys.find((s) => s.id === id) ??
+    banks?.main.find((s) => s.id === id) ??
+    banks?.suddenDeath.find((s) => s.id === id);
+
   const state = history?.present ?? null;
   const fastMoney = fmHistory?.present ?? null;
   const canStartFastMoney = !!state && state.winner !== null && state.rules.fastMoney.enabled && !fastMoney;
@@ -307,6 +359,8 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         try {
           const game = createGame(setup.rules, setup.families);
           const returning = !!setup.championReturning && champion !== null;
+          setActiveQuestionSet((setup.questionSetId && setStore.get(setup.questionSetId)) || null);
+          askedRef.current = new Set();
           // Starting without the champions means a new group: forget the old champions.
           if (!returning && champion) {
             setChampion(null);
@@ -334,21 +388,24 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         const picker = next && pickerFor(next.kind);
         if (!next || !picker) return;
         try {
-          // A question the host picked in the browser is used as soon as it fits the round.
-          const fits =
-            queued &&
-            queued.answerCount >= next.minAnswers &&
-            queued.answerCount <= next.maxAnswers &&
-            (next.kind === "suddenDeath") === (banks?.suddenDeath.some((s) => s.id === queued.id) ?? false);
-          let survey: Survey;
-          if (fits && queued) {
-            survey = queued;
-            picker.markUsed(queued.id);
-            setQueued(null);
-          } else {
-            survey = picker.pick({ min: next.minAnswers, max: next.maxAnswers });
-          }
-          apply({ type: "startRound", survey });
+          // 1. A question the host queued in the browser, at the next round of its kind.
+          // 2. The question set's question for this round.
+          // 3. A random question of the right size.
+          const isSuddenDeath = next.kind === "suddenDeath";
+          const fromQueue = queued && (bankOf(queued, suddenDeathIds) === "suddenDeath") === isSuddenDeath ? queued : null;
+          const set = activeQuestionSet;
+          const setId =
+            set &&
+            (next.kind === "round"
+              ? set.rounds[next.number - 1]
+              : set.suddenDeath.find((id) => !askedRef.current.has(id)));
+          const fromSet = setId ? findSurvey(setId) : undefined;
+          const handPicked = fromQueue ?? fromSet ?? null;
+          const survey = handPicked ?? picker.pick({ min: next.minAnswers, max: next.maxAnswers });
+          if (handPicked && !isCustomId(handPicked.id)) picker.markUsed(handPicked.id);
+          if (fromQueue) setQueued(null);
+          askedRef.current.add(survey.id);
+          apply({ type: "startRound", survey, handPicked: !!handPicked });
         } catch (error) {
           fail(error);
         }
@@ -421,15 +478,63 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         saveChampion(null);
         setRetiredChampion(null);
       },
-      banks,
+      banks: allBanks,
       isUsed: (id) => !!pickersRef.current && (pickersRef.current.main.isUsed(id) || pickersRef.current.suddenDeath.isUsed(id)),
       queued,
       queueSurvey(id) {
-        const found = banks && [...banks.main, ...banks.suddenDeath].find((s) => s.id === id);
+        const found = findSurvey(id);
         if (found) setQueued(found);
         else fail(`No survey with id "${id}".`);
       },
       clearQueue: () => setQueued(null),
+      findSurvey,
+      addCustomQuestion(input) {
+        try {
+          const survey = customStore.add(input);
+          setCustomSurveys(customStore.list());
+          setLastError(null);
+          return survey;
+        } catch (error) {
+          fail(error);
+          return null;
+        }
+      },
+      updateCustomQuestion(id, input) {
+        try {
+          const survey = customStore.update(id, input);
+          setCustomSurveys(customStore.list());
+          if (queued?.id === id) setQueued(survey);
+          setLastError(null);
+          return survey;
+        } catch (error) {
+          fail(error);
+          return null;
+        }
+      },
+      removeCustomQuestion(id) {
+        customStore.remove(id);
+        setCustomSurveys(customStore.list());
+        if (queued?.id === id) setQueued(null);
+      },
+      toCustomInput: (survey) => customStore.toInput(survey),
+      questionSets,
+      saveQuestionSet(set) {
+        try {
+          const saved = setStore.save(set);
+          setQuestionSets(setStore.list());
+          if (activeQuestionSet?.id === saved.id) setActiveQuestionSet(saved);
+          setLastError(null);
+          return saved;
+        } catch (error) {
+          fail(error);
+          return null;
+        }
+      },
+      removeQuestionSet(id) {
+        setStore.remove(id);
+        setQuestionSets(setStore.list());
+      },
+      activeQuestionSet,
       fastMoney,
       canStartFastMoney,
       startFastMoney(players) {
@@ -440,8 +545,12 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
           if (players[0] === players[1]) throw new Error("Pick two different players for Fast Money.");
           const names = players.map((i) => family.players[i]);
           if (names.some((n) => n === undefined)) throw new Error("Pick two players from the winning family.");
-          // Fast Money uses ordinary surveys from the main bank.
-          const surveys = Array.from({ length: FAST_MONEY_QUESTIONS }, () => picker.pick({ min: 4, max: 8 }));
+          // The question set's five, if it has them; otherwise ordinary surveys from the main bank.
+          const fromSet = (activeQuestionSet?.fastMoney ?? []).map(findSurvey);
+          const surveys =
+            fromSet.length === FAST_MONEY_QUESTIONS && fromSet.every((s) => s !== undefined)
+              ? (fromSet as Survey[])
+              : Array.from({ length: FAST_MONEY_QUESTIONS }, () => picker.pick({ min: 4, max: 8 }));
           const fm = createFastMoney(state.rules.fastMoney, surveys, names as string[]);
           commitFastMoney(createHistory(fm), deriveFastMoneyEvents(null, fm));
         } catch (error) {
@@ -470,6 +579,11 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
     // pickerFor only reads a ref, so it doesn't need to be a dependency.
     [
       banks,
+      customSurveys,
+      questionSets,
+      activeQuestionSet,
+      customStore,
+      setStore,
       champion,
       championTeam,
       retiredChampion,

@@ -182,6 +182,128 @@ describe("useGameHost", () => {
     });
   });
 
+  describe("custom questions and question sets", () => {
+    beforeEach(() => localStorage.clear());
+
+    const family = { question: "Name something in our garage.", answers: [{ text: "Car", points: 50 }, { text: "Bikes", points: 30 }, { text: "Junk", points: 20 }], suddenDeath: false };
+
+    it("adds, edits and deletes custom questions, saved in the browser and listed in the banks", async () => {
+      const { hook } = await ready();
+      let added = null as ReturnType<typeof hook.result.current.addCustomQuestion>;
+      act(() => {
+        added = hook.result.current.addCustomQuestion(family);
+      });
+      expect(added).toMatchObject({ custom: "main", answerCount: 3 });
+      expect(hook.result.current.banks!.custom.map((s) => s.question)).toEqual([family.question]);
+      expect(hook.result.current.findSurvey(added!.id)).toEqual(added);
+      expect(JSON.parse(localStorage.getItem("feud.customQuestions")!)).toHaveLength(1);
+
+      act(() => {
+        hook.result.current.updateCustomQuestion(added!.id, { ...family, question: "Name something in the garage." });
+      });
+      expect(hook.result.current.banks!.custom[0]!.question).toBe("Name something in the garage.");
+
+      act(() => {
+        expect(hook.result.current.addCustomQuestion({ ...family, question: "" })).toBeNull();
+      });
+      expect(hook.result.current.lastError).toMatch(/question/i);
+
+      act(() => hook.result.current.removeCustomQuestion(added!.id));
+      expect(hook.result.current.banks!.custom).toEqual([]);
+    });
+
+    it("plays a queued custom question even when it has fewer answers than the round normally needs", async () => {
+      const { hook } = await ready();
+      let added = null as ReturnType<typeof hook.result.current.addCustomQuestion>;
+      act(() => {
+        added = hook.result.current.addCustomQuestion(family);
+      });
+      act(() => hook.result.current.newGame(setup));
+      act(() => hook.result.current.queueSurvey(added!.id));
+      act(() => hook.result.current.startNextRound());
+      expect(hook.result.current.state!.round!.survey.id).toBe(added!.id);
+      expect(hook.result.current.state!.round!.slots).toHaveLength(3);
+    });
+
+    it("plays a question set's questions in order, then random ones; Sudden Death and Fast Money from the set too", async () => {
+      const { hook } = await ready();
+      const banks = hook.result.current.banks!;
+      let custom = null as ReturnType<typeof hook.result.current.addCustomQuestion>;
+      act(() => {
+        custom = hook.result.current.addCustomQuestion(family);
+      });
+      const [r2] = banks.main.filter((s) => s.answerCount === 5);
+      const sd = banks.suddenDeath[3]!;
+      const fm = banks.main.slice(100, 105).map((s) => s.id);
+      let saved = null as ReturnType<typeof hook.result.current.saveQuestionSet>;
+      act(() => {
+        saved = hook.result.current.saveQuestionSet({
+          id: "",
+          name: "Garage night",
+          rounds: [custom!.id, r2!.id],
+          suddenDeath: [sd.id],
+          fastMoney: fm,
+        });
+      });
+      expect(hook.result.current.questionSets.map((s) => s.name)).toEqual(["Garage night"]);
+      expect(JSON.parse(localStorage.getItem("feud.questionSets")!)).toHaveLength(1);
+
+      // Three rounds and a target nobody reaches, so Sudden Death follows.
+      const threeRounds = {
+        ...structuredClone(DEFAULT_RULES),
+        id: "three",
+        builtIn: false,
+        rounds: DEFAULT_RULES.rounds.slice(0, 3),
+        win: { type: "target" as const, target: 100_000 },
+      };
+      act(() => hook.result.current.newGame({ ...setup, rules: threeRounds, questionSetId: saved!.id }));
+      expect(hook.result.current.activeQuestionSet?.name).toBe("Garage night");
+
+      const asked: string[] = [];
+      for (let round = 0; round < 3; round++) {
+        act(() => hook.result.current.startNextRound());
+        asked.push(hook.result.current.state!.round!.survey.id);
+        for (const action of [
+          { type: "buzz", team: 0 },
+          { type: "faceOffAnswer", team: 0, answer: 0 },
+          { type: "playOrPass", play: true },
+          { type: "answer", answer: null },
+          { type: "answer", answer: null },
+          { type: "answer", answer: null },
+          { type: "steal", answer: null },
+        ] as const) {
+          act(() => hook.result.current.apply(action));
+        }
+      }
+      expect(asked.slice(0, 2)).toEqual([custom!.id, r2!.id]);
+      expect(asked[2]).not.toBe(custom!.id); // the set ran out: a random round-3 question
+      expect(hook.result.current.upcoming?.kind).toBe("suddenDeath");
+
+      act(() => hook.result.current.startNextRound());
+      expect(hook.result.current.state!.round!.survey.id).toBe(sd.id);
+      act(() => hook.result.current.apply({ type: "buzz", team: 0 }));
+      act(() => hook.result.current.apply({ type: "faceOffAnswer", team: 0, answer: 0 }));
+      expect(hook.result.current.state!.winner).toBe(0);
+
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      expect(hook.result.current.fastMoney!.surveys.map((s) => s.id)).toEqual(fm);
+    });
+
+    it("plays random questions when no set is chosen, and skips a set question that no longer exists", async () => {
+      const { hook } = await ready();
+      let saved = null as ReturnType<typeof hook.result.current.saveQuestionSet>;
+      act(() => {
+        saved = hook.result.current.saveQuestionSet({ id: "", name: "Gone", rounds: ["custom-q-deleted"], suddenDeath: [], fastMoney: [] });
+      });
+      act(() => hook.result.current.newGame({ ...setup, questionSetId: saved!.id }));
+      act(() => hook.result.current.startNextRound());
+      expect(hook.result.current.state!.round!.survey.answerCount).toBeGreaterThanOrEqual(6);
+
+      act(() => hook.result.current.newGame(setup));
+      expect(hook.result.current.activeQuestionSet).toBeNull();
+    });
+  });
+
   describe("champions and the question queue", () => {
     beforeEach(() => localStorage.clear());
 

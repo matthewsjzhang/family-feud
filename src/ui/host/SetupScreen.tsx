@@ -1,7 +1,9 @@
 // Before the game: name the two families and their players, and pick (or edit) the rules preset.
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { FamilySetup, GameSetup } from "../../app/useGameHost";
+import type { FamilySetup, GameSetup, QuestionBanks } from "../../app/useGameHost";
+import type { Survey } from "../../data/bank";
+import type { QuestionSet } from "../../data/questionSets";
 import type { ChampionRecord } from "../../engine/champions";
 import { createPresetStore, localPresetStorage, type PresetStore } from "../../engine/presets";
 import { DEFAULT_RULES } from "../../engine/rules";

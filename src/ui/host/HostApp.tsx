@@ -66,6 +66,11 @@ export function HostApp() {
             champion={host.champion}
             retiredChampion={host.retiredChampion}
             onClearChampion={host.clearChampion}
+            questionSets={host.questionSets}
+            onSaveQuestionSet={host.saveQuestionSet}
+            onRemoveQuestionSet={host.removeQuestionSet}
+            banks={host.banks}
+            findSurvey={host.findSurvey}
           />
         )}
         {host.lastError && !host.state && (

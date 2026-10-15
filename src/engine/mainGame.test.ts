@@ -86,6 +86,12 @@ describe("game setup", () => {
   it("refuses a survey whose size doesn't fit the round", () => {
     expect(() => run(newGame(), { type: "startRound", survey: survey(4) })).toThrow(/6.*8/);
   });
+
+  it("accepts a hand-picked survey of any size (e.g. a custom 3-answer question)", () => {
+    const s = run(newGame(), { type: "startRound", survey: survey(3), handPicked: true });
+    expect(s.round!.slots).toHaveLength(3);
+    expect(s.roundsPlayed).toBe(1);
+  });
 });
 
 describe("face-off", () => {

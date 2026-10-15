@@ -17,6 +17,8 @@ export interface Survey {
   source: string;
   /** Present only when the source page had a data problem; such surveys are never played. */
   reviewFlags?: string[];
+  /** Set on questions the host wrote (see data/customQuestions.ts): which bank they belong to. */
+  custom?: "main" | "suddenDeath";
 }
 
 export interface SizeRange {

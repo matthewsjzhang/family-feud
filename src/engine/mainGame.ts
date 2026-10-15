@@ -64,7 +64,8 @@ export interface GameState {
 
 /** Board answers are 0-based indexes into survey.answers; null means "not on the board". */
 export type GameAction =
-  | { type: "startRound"; survey: Survey }
+  /** handPicked: the host chose this survey, so any answer count is allowed. */
+  | { type: "startRound"; survey: Survey; handPicked?: boolean }
   | { type: "buzz"; team: Team }
   | { type: "faceOffAnswer"; team: Team; answer: number | null }
   | { type: "playOrPass"; play: boolean }
@@ -129,7 +130,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   const s = structuredClone(state);
   switch (action.type) {
     case "startRound":
-      startRound(s, action.survey);
+      startRound(s, action.survey, action.handPicked ?? false);
       break;
     case "buzz": {
       const round = requirePhase(s, "faceOff");
@@ -216,10 +217,11 @@ function advanceFaceOffPlayers(s: GameState, fo: FaceOffState) {
   });
 }
 
-function startRound(s: GameState, survey: Survey) {
+function startRound(s: GameState, survey: Survey, handPicked: boolean) {
   const upcoming = nextRound(s);
   if (!upcoming) throw new IllegalActionError("The game is over or a round is still being played.");
-  if (survey.answerCount < upcoming.minAnswers || survey.answerCount > upcoming.maxAnswers) {
+  const fits = survey.answerCount >= upcoming.minAnswers && survey.answerCount <= upcoming.maxAnswers;
+  if (!fits && !handPicked) {
     throw new IllegalActionError(
       `${upcoming.name} needs a survey with ${upcoming.minAnswers}-${upcoming.maxAnswers} answers.`,
     );
