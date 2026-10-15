@@ -24,6 +24,13 @@ export interface SetupScreenProps {
   retiredChampion?: ChampionRecord | null;
   /** Forget the champions (a new group of players). */
   onClearChampion?(): void;
+  /** Saved question sets ("preset games"); the setup screen picks one or random questions. */
+  questionSets?: QuestionSet[];
+  onSaveQuestionSet?(set: QuestionSet): QuestionSet | null;
+  onRemoveQuestionSet?(id: string): void;
+  /** Every question (main, Sudden Death, custom) for the question set editor. */
+  banks?: QuestionBanks | null;
+  findSurvey?(id: string): Survey | undefined;
 }
 
 const money = (n: number) => `$${n.toLocaleString("en-US")}`;
