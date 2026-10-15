@@ -111,6 +111,7 @@ export function fastMoneyReducer(state: FastMoneyState, action: FastMoneyAction)
       s.clockRunning = true;
       break;
     case "pauseClock":
+      if (!s.clockRunning) throw new IllegalActionError("The clock isn't running.");
       s.clockRunning = false;
       break;
     case "tick":

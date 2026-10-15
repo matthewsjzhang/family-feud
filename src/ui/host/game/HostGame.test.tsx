@@ -139,7 +139,8 @@ describe("HostGame", () => {
 
     expect(screen.getByText("The Smith family wins the game!")).toBeInTheDocument();
     expect(screen.getByText(/Final score: Smith 320 · Jones -10/)).toBeInTheDocument();
-    expect(button("Fast Money (coming soon)")).toBeDisabled();
+    // This fake host can't start Fast Money (canStartFastMoney: false), so no picker appears.
+    expect(queryButton(/Fast Money/)).not.toBeInTheDocument();
     expect(queryButton(/Start Round/)).not.toBeInTheDocument();
     // The host can still reveal what was left on the board.
     expect(button(/Reveal #2 SUNSCREEN/)).toBeEnabled();

@@ -13,7 +13,8 @@ export interface SavedSetup {
   families: [FamilySetup, FamilySetup];
 }
 
-export const defaultFamilyName = (team: number) => `Family ${team + 1}`;
+// Colour names match the team colours and read naturally in "The Blue family wins".
+export const defaultFamilyName = (team: number) => (team === 0 ? "Blue" : "Red");
 export const defaultPlayerName = (index: number) => `Player ${index + 1}`;
 
 export function defaultFamilies(): [FamilySetup, FamilySetup] {

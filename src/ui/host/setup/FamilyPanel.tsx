@@ -12,7 +12,7 @@ export interface FamilyPanelProps {
 
 export function FamilyPanel({ team, family, onChange }: FamilyPanelProps) {
   const id = useId();
-  const label = defaultFamilyName(team);
+  const label = `Family ${team + 1}`;
   const { players } = family;
 
   const setPlayer = (index: number, name: string) => onChange({ ...family, players: players.with(index, name) });
@@ -28,7 +28,7 @@ export function FamilyPanel({ team, family, onChange }: FamilyPanelProps) {
           id={`${id}-name`}
           type="text"
           value={family.name}
-          placeholder={label}
+          placeholder={defaultFamilyName(team)}
           autoComplete="off"
           onChange={(e) => onChange({ ...family, name: e.target.value })}
         />

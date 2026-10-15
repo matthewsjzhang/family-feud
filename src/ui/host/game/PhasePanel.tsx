@@ -4,6 +4,7 @@
 import type { ReactNode } from "react";
 import type { GameHost } from "../../../app/useGameHost";
 import { otherTeam, type GameState, type RoundState, type Team } from "../../../engine/mainGame";
+import { PlayFastMoney } from "../fastMoney/PlayFastMoney";
 import { roundLabel } from "./answerAction";
 
 interface PhasePanelProps {
@@ -254,10 +255,12 @@ function BetweenRounds({ host, state, round }: WithRound<RoundState | null>) {
             Final score: {state.families[0].name} {state.families[0].score} · {state.families[1].name}{" "}
             {state.families[1].score}
           </p>
-          <p className="hg-muted">Fast Money comes in a later version. Use “End game” above to start over.</p>
-          <button type="button" className="hg-btn hg-btn--big" disabled>
-            Fast Money (coming soon)
-          </button>
+          {host.canStartFastMoney ? (
+            <PlayFastMoney host={host} family={state.families[state.winner]} />
+          ) : (
+            !state.rules.fastMoney.enabled && <p className="hg-muted">Fast Money is off in these rules.</p>
+          )}
+          <p className="hg-muted">Use “End game” above to start over.</p>
         </div>
       ) : (
         <button

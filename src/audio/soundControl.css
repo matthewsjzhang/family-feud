@@ -1,0 +1,87 @@
+/* Sound control in the board's bottom-left corner (the right side holds the Fast Money total). Sized in px, not cqw:
+   it's for whoever is at the keyboard, not for the audience. */
+
+.sc-root {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--tile-text);
+}
+
+.sc-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.sc-enable,
+.sc-mute {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--board-frame);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--points-bg) 88%, transparent);
+  color: var(--tile-text);
+  cursor: pointer;
+}
+
+.sc-enable {
+  padding: 8px 14px;
+  box-shadow: 0 0 0 0 var(--board-frame-light);
+  animation: sc-pulse 2.4s ease-in-out infinite;
+}
+
+.sc-enable:hover {
+  background: var(--tile-revealed);
+}
+
+/* Once enabled: a ghost of itself until the mouse or keyboard comes near. */
+.sc-ready {
+  opacity: 0.12;
+  transition: opacity 0.4s ease;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--board-bg) 70%, transparent);
+}
+
+.sc-ready:hover,
+.sc-ready:focus-within {
+  opacity: 1;
+}
+
+.sc-mute {
+  padding: 6px;
+}
+
+.sc-mute[aria-pressed="true"] {
+  border-color: var(--strike);
+}
+
+.sc-volume {
+  width: 96px;
+  accent-color: var(--board-frame);
+}
+
+.sc-enable:focus-visible,
+.sc-mute:focus-visible,
+.sc-volume:focus-visible {
+  outline: 2px solid var(--board-frame-light);
+  outline-offset: 2px;
+}
+
+@keyframes sc-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--board-frame-light) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}

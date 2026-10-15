@@ -85,7 +85,7 @@ test("a whole game: four rounds, Sudden Death and the winner screen", async ({ p
 
   await press(page, "q", "1");
   await expect(board.getByRole("alert")).toContainText(/smith/i);
-  await expect(page.getByText(/Fast Money \(coming soon\)/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play Fast Money" })).toBeVisible();
 });
 
 test("the board joins a game already in progress", async ({ page }) => {

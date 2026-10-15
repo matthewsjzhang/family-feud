@@ -1,0 +1,538 @@
+/* Host console Fast Money screen. Builds on the hg- buttons and legend from hostGame.css.
+   Laptop first; one column on narrow screens. */
+
+.hfm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Header: who / clock / total / undo */
+
+.hfm-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 16px;
+  align-items: center;
+  background: var(--host-surface);
+  border: 1px solid var(--host-border);
+  border-top: 6px solid var(--host-accent);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+}
+
+.hfm-header__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hfm-header__label {
+  color: var(--host-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  overflow-wrap: anywhere;
+}
+
+.hfm-header__player {
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.hfm-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4.5ch;
+  line-height: 1;
+}
+
+.hfm-clock__seconds {
+  font-size: 3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hfm-clock__state {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--host-muted);
+}
+
+.hfm-clock--stopped .hfm-clock__seconds {
+  color: var(--host-muted);
+}
+
+.hfm-clock--low .hfm-clock__seconds {
+  color: var(--host-bad);
+}
+
+.hfm-header__total {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hfm-header__total strong {
+  font-size: 2rem;
+}
+
+/* Main area */
+
+.hfm-main {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.hfm-stage,
+.hfm-side {
+  background: var(--host-surface);
+  border: 1px solid var(--host-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-width: 0;
+}
+
+.hfm-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hfm-side__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.hfm-legend__note {
+  margin: 6px 0 0;
+}
+
+.hfm-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hfm-panel__title {
+  margin: 0;
+  font-size: 1.3rem;
+  overflow-wrap: anywhere;
+}
+
+.hfm-panel__lead {
+  margin: 0;
+}
+
+.hfm-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--host-border);
+  color: var(--host-muted);
+}
+
+.hfm-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--host-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--host-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Current question, read aloud */
+
+.hfm-current {
+  border: 2px solid var(--host-accent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+.hfm-current__label {
+  margin: 0 0 4px;
+  color: var(--host-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+}
+
+.hfm-current__text {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.hfm-current__p1 {
+  margin: 8px 0 0;
+  color: var(--host-muted);
+}
+
+.hfm-duplicate {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--host-bad);
+  color: var(--host-accent-text);
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.hfm-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hfm-entry .hg-warn {
+  margin: 0;
+}
+
+.hfm-entry__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.hfm-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+/* Question list */
+
+.hfm-questions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hfm-q {
+  display: grid;
+  grid-template-columns: 2em minmax(0, 1fr) auto;
+  grid-template-areas:
+    "num text said"
+    "num p1 p1";
+  column-gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 2px solid var(--host-border);
+  background: var(--host-surface-2);
+}
+
+.hfm-q--current {
+  border-color: var(--host-accent);
+}
+
+.hfm-q__num {
+  grid-area: num;
+  font-weight: 800;
+  text-align: center;
+}
+
+.hfm-q__text {
+  grid-area: text;
+  overflow-wrap: anywhere;
+}
+
+.hfm-q__said {
+  grid-area: said;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.hfm-q__p1 {
+  grid-area: p1;
+  font-size: 0.85rem;
+  color: var(--host-muted);
+}
+
+/* Judging */
+
+.hfm-judge {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 2px solid var(--host-border);
+}
+
+.hfm-judge--next {
+  border-color: var(--host-accent);
+}
+
+.hfm-judge--done {
+  border-color: var(--host-good);
+}
+
+.hfm-judge__head {
+  display: grid;
+  grid-template-columns: 2em minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* The number badge is shared with the question list, whose grid has a "num" area; this grid doesn't. */
+.hfm-judge__head .hfm-q__num {
+  grid-area: auto;
+}
+
+.hfm-judge__question {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.hfm-judge__points {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hfm-judge__said {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.hfm-judge__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.hfm-judge__suggestion {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.hfm-judge__suggest-btn {
+  min-height: 40px;
+}
+
+.hfm-survey {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.hfm-survey__btn {
+  width: 100%;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 1.5em minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  text-align: left;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  border: 2px solid var(--host-border);
+  background: var(--host-surface-2);
+  color: var(--host-text);
+  cursor: pointer;
+}
+
+.hfm-survey__btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.hfm-survey__btn:not(:disabled):hover {
+  border-color: var(--host-accent);
+}
+
+.hfm-survey__btn--suggested {
+  border-color: var(--host-good);
+}
+
+.hfm-survey__btn[aria-pressed="true"] {
+  border-color: var(--host-good);
+  background: var(--host-good);
+  color: var(--host-accent-text);
+  opacity: 1;
+}
+
+.hfm .hg-btn[aria-pressed="true"] {
+  outline: 3px solid var(--host-text);
+  outline-offset: 2px;
+}
+
+.hfm-survey__num {
+  font-weight: 800;
+}
+
+.hfm-survey__text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.hfm-survey__points {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Result */
+
+.hfm-result {
+  text-align: center;
+  padding: 20px 12px;
+  border-radius: var(--radius);
+  border: 3px solid var(--host-border);
+}
+
+.hfm-result--won {
+  border-color: var(--host-good);
+}
+
+.hfm-result__headline {
+  margin: 0;
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.hfm-result--won .hfm-result__headline {
+  color: var(--host-good);
+}
+
+.hfm-result__detail {
+  margin: 6px 0 0;
+  font-size: 1.2rem;
+  color: var(--host-muted);
+}
+
+/* Answer summary */
+
+.hfm-summary {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.hfm-summary th,
+.hfm-summary td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--host-border);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.hfm-summary thead th:first-child,
+.hfm-summary tbody th {
+  width: 2em;
+}
+
+.hfm-summary__points {
+  float: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .hfm-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .hfm-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+
+  .hfm-clock__seconds {
+    font-size: 2.4rem;
+  }
+
+  .hfm-current__text {
+    font-size: 1.4rem;
+  }
+
+  .hfm-result__headline {
+    font-size: 2.2rem;
+  }
+
+  .hfm-stage,
+  .hfm-side {
+    padding: 12px;
+  }
+
+  .hfm-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hfm-survey {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Game-over player picker (rendered inside the main game's PhasePanel) */
+
+.hfm-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.hfm-pick__title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.hfm-pick__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.hfm-pick__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.hfm-pick__select {
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--host-border);
+  background: var(--host-surface);
+  color: var(--host-text);
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .hfm-pick__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

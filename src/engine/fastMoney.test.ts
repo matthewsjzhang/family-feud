@@ -68,6 +68,12 @@ describe("the clock", () => {
     expect(run(newRound(), { type: "tick", ms: 1000 }).timeLeftMs).toBe(20000);
   });
 
+  it("only pauses a running clock", () => {
+    expect(() => run(newRound(), { type: "pauseClock" })).toThrow(/clock/i);
+    const paused = run(newRound(), { type: "startClock" }, { type: "pauseClock" });
+    expect(() => run(paused, { type: "pauseClock" })).toThrow(/clock/i);
+  });
+
   it("counts down once started, and can be paused", () => {
     let s = run(newRound(), { type: "startClock" }, { type: "tick", ms: 1500 });
     expect(s.timeLeftMs).toBe(18500);

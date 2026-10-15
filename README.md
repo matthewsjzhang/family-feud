@@ -22,7 +22,7 @@ npm run test:e2e
 npm run dev
 ```
 
-Open the dev server's URL for the host console, then click **Open game board** and put that window on the TV. Both windows must be in the same browser.
+Open the dev server's URL for the host console, then click **Open game board** and put that window on the TV. Both windows must be in the same browser. Click **Click to enable sound** on the board once: browsers block audio in a window that hasn't been clicked.
 
 The first `npm run test:e2e` needs Playwright's browser: `npx playwright install chromium`.
 

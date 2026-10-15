@@ -36,8 +36,8 @@ describe("SetupScreen", () => {
     const s = started();
     expect(s.rules).toBe(DEFAULT_RULES);
     expect(s.families).toEqual([
-      { name: "Family 1", players: ["Player 1", "Player 2", "Player 3", "Player 4", "Player 5"] },
-      { name: "Family 2", players: ["Player 1", "Player 2", "Player 3", "Player 4", "Player 5"] },
+      { name: "Blue", players: ["Player 1", "Player 2", "Player 3", "Player 4", "Player 5"] },
+      { name: "Red", players: ["Player 1", "Player 2", "Player 3", "Player 4", "Player 5"] },
     ]);
   });
 
@@ -59,7 +59,7 @@ describe("SetupScreen", () => {
     await user.clear(within(family(2)).getByLabelText("Family name"));
     await user.clear(within(family(1)).getByLabelText("Player 3"));
     await user.click(screen.getByRole("button", { name: "Start game" }));
-    expect(started().families[1].name).toBe("Family 2");
+    expect(started().families[1].name).toBe("Red");
     expect(started().families[0].players[2]).toBe("Player 3");
   });
 
@@ -146,7 +146,7 @@ describe("SetupScreen", () => {
     localStorage.setItem(SETUP_STORAGE_KEY, JSON.stringify({ presetId: "custom-gone", families: "nonsense" }));
     setup();
     expect(screen.getByLabelText("Rules preset")).toHaveValue(DEFAULT_RULES.id);
-    expect(within(family(1)).getByLabelText("Family name")).toHaveValue("Family 1");
+    expect(within(family(1)).getByLabelText("Family name")).toHaveValue("Blue");
   });
 
   it("still works when localStorage throws", async () => {
@@ -161,7 +161,7 @@ describe("SetupScreen", () => {
     await user.type(within(family(1)).getByLabelText("Family name"), "!");
     await user.click(screen.getByRole("button", { name: "Start game" }));
     expect(started().rules).toBe(SINGLE_POINTS_RULES);
-    expect(started().families[0].name).toBe("Family 1!");
+    expect(started().families[0].name).toBe("Blue!");
   });
 
   it("works with the default localStorage-backed store when none is injected", async () => {
