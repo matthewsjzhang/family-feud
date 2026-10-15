@@ -33,7 +33,7 @@ export function HostApp() {
             aria-pressed={browsing}
             onClick={() => setBrowsing((open) => !open)}
           >
-            {browsing ? "Back to the game" : "Question bank"}
+            {browsing ? (host.state ? "Back to the game" : "Back to setup") : "Question bank"}
           </button>
         )}
         <button type="button" className="host-app__board-button" onClick={host.openBoard}>

@@ -25,6 +25,8 @@ interface Props {
   flashKey: number | null;
   gain: { key: number; points: number } | null;
   onGainDone: (key: number) => void;
+  /** Set on the returning champions' panel: the games they've won so far. */
+  championWins?: number | null;
 }
 
 function GainPop({ points, onDone }: { points: number; onDone: () => void }) {
@@ -32,7 +34,17 @@ function GainPop({ points, onDone }: { points: number; onDone: () => void }) {
   return <span className="gb-family__gain">+{points}</span>;
 }
 
-export function FamilyPanel({ team, name, score, status, faceOffPlayer, flashKey, gain, onGainDone }: Props) {
+export function FamilyPanel({
+  team,
+  name,
+  score,
+  status,
+  faceOffPlayer,
+  flashKey,
+  gain,
+  onGainDone,
+  championWins = null,
+}: Props) {
   const shown = useCountUp(score);
   const upper = name.toUpperCase();
   const statusText = status ? STATUS_TEXT[status] : null;
@@ -44,6 +56,16 @@ export function FamilyPanel({ team, name, score, status, faceOffPlayer, flashKey
       data-status={status ?? "none"}
     >
       {flashKey !== null && <span key={flashKey} className="gb-family__flash" aria-hidden="true" />}
+      {championWins !== null && (
+        <p className="gb-family__ribbon" data-testid={`champion-ribbon-${team}`}>
+          <span className="gb-family__ribbon-title">CHAMPIONS</span>
+          {/* Two lines on screen; the separator keeps it one phrase for screen readers. */}
+          <span className="gb-sr"> · </span>
+          <span className="gb-family__ribbon-wins">
+            {championWins} {championWins === 1 ? "WIN" : "WINS"}
+          </span>
+        </p>
+      )}
       <h2 className="gb-family__name" style={{ fontSize: `${fitFontSize(upper, { base: 2.4, fitChars: 9, min: 1.3 })}cqw` }}>
         {upper}
       </h2>

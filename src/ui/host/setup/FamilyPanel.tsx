@@ -8,11 +8,12 @@ export interface FamilyPanelProps {
   team: 0 | 1;
   family: FamilySetup;
   onChange(family: FamilySetup): void;
+  /** Heading for the panel; defaults to "Family 1" / "Family 2". */
+  label?: string;
 }
 
-export function FamilyPanel({ team, family, onChange }: FamilyPanelProps) {
+export function FamilyPanel({ team, family, onChange, label = `Family ${team + 1}` }: FamilyPanelProps) {
   const id = useId();
-  const label = `Family ${team + 1}`;
   const { players } = family;
 
   const setPlayer = (index: number, name: string) => onChange({ ...family, players: players.with(index, name) });

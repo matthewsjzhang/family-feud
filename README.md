@@ -13,6 +13,15 @@ Two banks, both scraped from [mstiescott.neocities.org](https://mstiescott.neoci
 - `npm run bank:verify` spot-checks the main bank against the live site; add `-- --bank data/sudden_death_bank.json` for the Sudden Death bank.
 - Surveys with typos on the source site carry `reviewFlags` and are never played.
 
+## What's in the game
+
+- Main game with face-offs, play or pass, strikes, steals, Sudden Death and Fast Money, following the modern show's rules by default
+- Rule presets (Default, Single points, Fixed rounds) and a rules editor for your own
+- Host console with the full answer key, typed answers with match suggestions, undo and keyboard shortcuts
+- Game board window for the TV, with original synthesized sound effects
+- Returning champions who retire undefeated at the preset's win limit
+- A question bank browser for searching surveys and picking the next question
+
 ## Development
 
 ```bash

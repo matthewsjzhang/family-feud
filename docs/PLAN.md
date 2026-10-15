@@ -1,6 +1,6 @@
 # Plan: Family Feud (faithful to the modern syndicated show)
 
-**Complexity:** Medium-Large · **Status:** awaiting confirmation · **Data:** `data/question_bank.json` (8,907 surveys) and `data/sudden_death_bank.json` (456 single-answer surveys), done and verified
+**Complexity:** Medium-Large · **Status:** all 7 phases built · **Data:** `data/question_bank.json` (8,907 surveys) and `data/sudden_death_bank.json` (456 single-answer surveys), done and verified
 
 ## 1. Requirements restatement
 

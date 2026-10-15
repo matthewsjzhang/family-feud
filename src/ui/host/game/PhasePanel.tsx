@@ -1,8 +1,9 @@
 // The controls for the current step of the round: buzzers, play/pass, strikes,
 // the steal, the post-round reveal and the next round / game over.
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import type { GameHost } from "../../../app/useGameHost";
+import { recordResult } from "../../../engine/champions";
 import { otherTeam, type GameState, type RoundState, type Team } from "../../../engine/mainGame";
 import { PlayFastMoney } from "../fastMoney/PlayFastMoney";
 import { roundLabel } from "./answerAction";
@@ -260,7 +261,8 @@ function BetweenRounds({ host, state, round }: WithRound<RoundState | null>) {
           ) : (
             !state.rules.fastMoney.enabled && <p className="hg-muted">Fast Money is off in these rules.</p>
           )}
-          <p className="hg-muted">Use “End game” above to start over.</p>
+          {/* Fast Money (when still available) comes first, so Next game is the quieter button then. */}
+          <NextGame host={host} state={state} primary={!host.canStartFastMoney} />
         </div>
       ) : (
         <button
@@ -272,6 +274,60 @@ function BetweenRounds({ host, state, round }: WithRound<RoundState | null>) {
           {up ? `Start ${roundLabel(up)}` : "No more rounds"} <Kbd>N</Kbd>
         </button>
       )}
+    </div>
+  );
+}
+
+const winsText = (wins: number) => `${wins} ${wins === 1 ? "win" : "wins"}`;
+
+/** What "Next game" will do to the champion record, worded for the host. Null before anyone has won. */
+export function nextGameOutcome(host: GameHost, state: GameState): string | null {
+  if (state.winner === null) return null;
+  const winner = state.families[state.winner];
+  const winnerWasChampion = host.championTeam !== null && state.winner === host.championTeam;
+  // The same engine call finishGame makes, so the preview can't disagree with what happens.
+  // The payout doesn't change who is champion or the win count, so 0 is fine here.
+  const update = recordResult(
+    host.champion,
+    { winner: { name: winner.name, players: [...winner.players] }, winnerWasChampion, payout: 0 },
+    state.rules.championLimit,
+  );
+  if (update.retired) return `${winner.name} retire undefeated (${winsText(update.retired.wins)})`;
+  const wins = update.champion?.wins ?? 1;
+  if (winnerWasChampion && host.champion) return `${winner.name} defend their title: ${winsText(wins)}`;
+  if (host.champion && host.championTeam !== null) return `${winner.name} dethrone the champions`;
+  return `${winner.name} become champions (${winsText(wins)})`;
+}
+
+interface NextGameProps {
+  host: GameHost;
+  state: GameState;
+  primary?: boolean;
+  /** Runs before finishGame, e.g. leaving Fast Money. */
+  before?(): void;
+}
+
+/** Records the result (champions, winnings) and goes to setup for the next game. */
+export function NextGame({ host, state, primary = true, before }: NextGameProps) {
+  const id = useId();
+  const outcome = nextGameOutcome(host, state);
+  if (outcome === null) return null;
+  return (
+    <div className="hg-nextgame">
+      <p id={id} className="hg-nextgame__outcome" data-testid="next-game-outcome">
+        {outcome}
+      </p>
+      <button
+        type="button"
+        className={`hg-btn hg-btn--big${primary ? " hg-btn--primary" : ""}`}
+        aria-describedby={id}
+        onClick={() => {
+          before?.();
+          host.finishGame();
+        }}
+      >
+        Next game
+      </button>
     </div>
   );
 }

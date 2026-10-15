@@ -210,6 +210,75 @@
   min-width: 4.5em;
 }
 
+/* Returning champions */
+
+.setup-retired {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--board-frame-light), var(--board-frame));
+  color: var(--banner-text);
+  font-weight: 700;
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.setup-champion p,
+.setup-champion h2,
+.setup-champion h3 {
+  margin: 0;
+}
+
+.setup-champion__label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--team-color);
+}
+
+.setup-champion__name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.setup-champion__record {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+/* Gold, like the board's champions ribbon. */
+.setup-champion__badge {
+  padding: 2px 10px;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--board-frame-light);
+  color: var(--banner-text);
+  font-weight: 700;
+}
+
+.setup-champion__limit {
+  color: var(--host-muted);
+}
+
+.setup-champion__players-title {
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.setup-champion__players {
+  margin: 0;
+  padding-left: 1.5em;
+  overflow-wrap: anywhere;
+}
+
+.setup-champion__clear {
+  align-self: flex-start;
+}
+
 /* Rules summary */
 
 .setup__rules {

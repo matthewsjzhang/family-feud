@@ -3,6 +3,7 @@
 
 import type { GameHost } from "../../../app/useGameHost";
 import { fastMoneyTotal, type FastMoneyState } from "../../../engine/fastMoney";
+import { NextGame } from "../game/PhasePanel";
 import { formatDollars } from "./fastMoneyView";
 
 interface PanelProps {
@@ -55,6 +56,8 @@ export function DonePanel({ host, fm }: PanelProps) {
       <button type="button" className="hg-btn hg-btn--primary hg-btn--big" onClick={host.endFastMoney}>
         Back to the game
       </button>
+      {/* Leave Fast Money first; finishGame then records the payout the hook kept from the outcome. */}
+      {host.state && <NextGame host={host} state={host.state} primary={false} before={host.endFastMoney} />}
       <AnswerSummary fm={fm} />
     </div>
   );

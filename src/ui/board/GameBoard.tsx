@@ -129,6 +129,7 @@ export function GameBoard({ snapshot, eventBatch }: GameBoardProps) {
                 flashKey={transients.buzz?.team === team ? transients.buzz.key : null}
                 gain={transients.gain?.team === team ? transients.gain : null}
                 onGainDone={endGain}
+                championWins={snapshot.champion?.team === team ? snapshot.champion.wins : null}
               />
             </div>
           ))}

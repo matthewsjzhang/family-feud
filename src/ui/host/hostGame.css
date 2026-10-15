@@ -459,6 +459,29 @@
   color: var(--host-text);
 }
 
+.hg-nextgame {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--host-border);
+}
+
+.hg-gameover .hg-nextgame__outcome {
+  font-weight: 700;
+}
+
+/* The returning champions on the host scoreboard. */
+.hg-family__champion {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--board-frame-light);
+  color: var(--banner-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .hg-toolbar {
   display: flex;
   gap: 8px;

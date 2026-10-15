@@ -85,6 +85,7 @@ export function HostGame({ host }: HostGameProps) {
     <div className="hg">
       <Scoreboard
         state={state}
+        champion={host.champion && host.championTeam !== null ? { team: host.championTeam, wins: host.champion.wins } : null}
         canAdjust={(team, delta) => host.can({ type: "adjustScore", team, delta })}
         onAdjust={(team, delta) => host.apply({ type: "adjustScore", team, delta })}
       />

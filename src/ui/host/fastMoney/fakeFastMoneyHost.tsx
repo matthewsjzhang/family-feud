@@ -97,6 +97,8 @@ interface FakeFastMoneyHostProps {
   players?: [number, number];
   /** Spy on the host's calls. */
   onAction?(action: FastMoneyAction): void;
+  /** Champion fields and spies, spread over the fake host last. */
+  overrides?: Partial<GameHost>;
 }
 
 function wonGame(rules: GameRules): GameState {
@@ -106,7 +108,13 @@ function wonGame(rules: GameRules): GameState {
   return game;
 }
 
-export function FakeFastMoneyHost({ clock, rules = DEFAULT_RULES, players = [0, 1], onAction }: FakeFastMoneyHostProps) {
+export function FakeFastMoneyHost({
+  clock,
+  rules = DEFAULT_RULES,
+  players = [0, 1],
+  onAction,
+  overrides,
+}: FakeFastMoneyHostProps) {
   const [state] = useState(() => wonGame(rules));
   const [fmHistory, setFmHistory] = useState<History<FastMoneyState> | null>(() =>
     createHistory(
@@ -192,6 +200,7 @@ export function FakeFastMoneyHost({ clock, rules = DEFAULT_RULES, players = [0, 
       return s ? matchAnswer(s.answers, guess) : null;
     },
     endFastMoney: () => commit(null),
+    ...overrides,
   };
 
   return <HostFastMoney host={host} />;

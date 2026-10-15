@@ -6,6 +6,7 @@ import type { ChampionRecord } from "../../engine/champions";
 import { createPresetStore, localPresetStorage, type PresetStore } from "../../engine/presets";
 import { DEFAULT_RULES } from "../../engine/rules";
 import { RulesEditor } from "./RulesEditor";
+import { ChampionPanel } from "./setup/ChampionPanel";
 import { FamilyPanel } from "./setup/FamilyPanel";
 import { summarizePreset } from "./setup/presetSummary";
 import { defaultFamilies, finalizeFamilies, loadSetup, saveSetup } from "./setup/setupStorage";
@@ -23,14 +24,35 @@ export interface SetupScreenProps {
   onClearChampion?(): void;
 }
 
-export function SetupScreen({ onStart, presetStore }: SetupScreenProps) {
+const money = (n: number) => `$${n.toLocaleString("en-US")}`;
+
+function retiredText({ family, wins, winnings }: ChampionRecord): string {
+  const after = `after ${wins} ${wins === 1 ? "win" : "wins"}`;
+  return winnings > 0
+    ? `The ${family.name} family retires undefeated ${after}, with ${money(winnings)}!`
+    : `The ${family.name} family retires undefeated ${after}!`;
+}
+
+export function SetupScreen({
+  onStart,
+  presetStore,
+  champion = null,
+  retiredChampion = null,
+  onClearChampion,
+}: SetupScreenProps) {
   const id = useId();
   const [store] = useState(() => presetStore ?? createPresetStore(localPresetStorage()));
   const [saved] = useState(loadSetup);
   const [presetId, setPresetId] = useState(() =>
     saved.presetId && store.get(saved.presetId) ? saved.presetId : DEFAULT_RULES.id,
   );
-  const [families, setFamilies] = useState<[FamilySetup, FamilySetup]>(() => saved.families ?? defaultFamilies());
+  const [families, setFamilies] = useState<[FamilySetup, FamilySetup]>(() => {
+    const initial = saved.families ?? defaultFamilies();
+    // Challengers who just took the title are now the champions: don't offer them as challengers too.
+    const sameAsChampion =
+      champion !== null && initial[1].name.trim().toLowerCase() === champion.family.name.trim().toLowerCase();
+    return sameAsChampion ? [initial[0], defaultFamilies()[1]] : initial;
+  });
   const [editing, setEditing] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
@@ -76,9 +98,25 @@ export function SetupScreen({ onStart, presetStore }: SetupScreenProps) {
         New game
       </h1>
 
+      {retiredChampion && (
+        <p className="setup-retired" role="status">
+          {retiredText(retiredChampion)}
+        </p>
+      )}
+
       <div className="setup__families">
-        <FamilyPanel team={0} family={families[0]} onChange={(f) => setFamily(0, f)} />
-        <FamilyPanel team={1} family={families[1]} onChange={(f) => setFamily(1, f)} />
+        {/* The champions panel replaces family 1 but leaves its saved names alone for later. */}
+        {champion ? (
+          <ChampionPanel champion={champion} limit={rules.championLimit} onClear={onClearChampion} />
+        ) : (
+          <FamilyPanel team={0} family={families[0]} onChange={(f) => setFamily(0, f)} />
+        )}
+        <FamilyPanel
+          team={1}
+          family={families[1]}
+          label={champion ? "Family 2 · Challengers" : undefined}
+          onChange={(f) => setFamily(1, f)}
+        />
       </div>
 
       <section className="setup__rules" aria-labelledby={`${id}-rules`}>
@@ -128,7 +166,18 @@ export function SetupScreen({ onStart, presetStore }: SetupScreenProps) {
         <button
           type="button"
           className="setup-button setup-button--primary setup-button--large"
-          onClick={() => onStart({ rules, families: finalizeFamilies(families) })}
+          onClick={() => {
+            const finished = finalizeFamilies(families);
+            onStart(
+              champion
+                ? {
+                    rules,
+                    families: [structuredClone(champion.family), finished[1]],
+                    championReturning: true,
+                  }
+                : { rules, families: finished },
+            );
+          }}
         >
           Start game
         </button>
