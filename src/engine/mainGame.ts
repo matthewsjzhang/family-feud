@@ -49,6 +49,8 @@ export interface RoundState {
   winner: Team | null;
   /** Points added to the winner's score (bank x multiplier). */
   awarded: number;
+  /** Someone has buzzed in this round (stays true when the next pair steps up). */
+  hasBuzzed: boolean;
 }
 
 export interface GameState {
@@ -130,8 +132,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       startRound(s, action.survey);
       break;
     case "buzz": {
-      const fo = requirePhase(s, "faceOff").faceOff;
+      const round = requirePhase(s, "faceOff");
+      const fo = round.faceOff;
       if (fo.buzzed !== null) throw new IllegalActionError("Someone already buzzed in.");
+      round.hasBuzzed = true;
       fo.buzzed = action.team;
       fo.turn = action.team;
       break;
@@ -236,6 +240,7 @@ function startRound(s: GameState, survey: Survey) {
     strikes: 0,
     winner: null,
     awarded: 0,
+    hasBuzzed: false,
   };
 }
 

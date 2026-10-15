@@ -91,6 +91,19 @@ describe("game setup", () => {
 describe("face-off", () => {
   const start = () => run(newGame(), { type: "startRound", survey: survey(6) });
 
+  it("remembers that someone has buzzed in this round, even after both players miss", () => {
+    expect(start().round!.hasBuzzed).toBe(false);
+    const buzzed = run(start(), { type: "buzz", team: 1 });
+    expect(buzzed.round!.hasBuzzed).toBe(true);
+    const nextPair = run(
+      buzzed,
+      { type: "faceOffAnswer", team: 1, answer: null },
+      { type: "faceOffAnswer", team: 0, answer: null },
+    );
+    expect(nextPair.round!.faceOff.buzzed).toBeNull();
+    expect(nextPair.round!.hasBuzzed).toBe(true);
+  });
+
   it("pits the first player of each family against each other", () => {
     expect(start().round!.faceOff.players).toEqual([0, 0]);
   });

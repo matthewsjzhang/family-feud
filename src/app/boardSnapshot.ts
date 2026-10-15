@@ -25,7 +25,8 @@ export interface RoundView {
   number: number;
   name: string;
   multiplier: number;
-  question: string;
+  /** Null until someone buzzes in, so the audience hears it read before seeing it. */
+  question: string | null;
   slots: SlotView[];
   bank: number;
   strikes: number;
@@ -145,7 +146,7 @@ export function toSnapshot(
       number: r.number,
       name: r.name,
       multiplier: r.multiplier,
-      question: r.survey.question,
+      question: r.hasBuzzed ? r.survey.question : null,
       slots: r.survey.answers.map((answer, i) => {
         const hidden = r.slots[i] === "hidden";
         return {

@@ -136,7 +136,7 @@ export function GameBoard({ snapshot, eventBatch }: GameBoardProps) {
 
           <div className="gb-center">
             {round ? (
-              <div className="gb-frame" key={`${round.kind}-${round.number}-${round.question}`}>
+              <div className="gb-frame" key={`${round.kind}-${round.number}`}>
                 <AnswerBoard slots={round.slots} glow={transients.glow} />
               </div>
             ) : (
@@ -153,7 +153,10 @@ export function GameBoard({ snapshot, eventBatch }: GameBoardProps) {
                   {statusLine(round, names)}
                   {(round.phase === "playing" || round.phase === "steal") && <StrikePips count={round.strikes} />}
                 </p>
-                <p className="gb-caption__question">{round.question}</p>
+                {/* Hidden until someone buzzes in; the empty line keeps the question's spot so nothing jumps. */}
+                <p className="gb-caption__question" aria-hidden={round.question === null}>
+                  {round.question ?? " "}
+                </p>
               </>
             )}
           </footer>

@@ -103,6 +103,19 @@ describe("answer board", () => {
 });
 
 describe("header and caption", () => {
+  it("hides the question until someone buzzes in, keeping its spot under the board", () => {
+    const fresh = start(newGame(), 5);
+    const question = fresh.round!.survey.question;
+    const { container, rerender } = render(<GameBoard snapshot={snap(fresh)} eventBatch={null} />);
+    expect(screen.queryByText(question)).not.toBeInTheDocument();
+    const line = container.querySelector(".gb-caption__question")!;
+    expect(line).toHaveAttribute("aria-hidden", "true");
+
+    rerender(<GameBoard snapshot={snap(run(fresh, { type: "buzz", team: 1 }))} eventBatch={null} />);
+    expect(screen.getByText(question)).toBe(container.querySelector(".gb-caption__question"));
+    expect(screen.getByText(question)).toHaveAttribute("aria-hidden", "false");
+  });
+
   it("shows the bank, the question and the face-off players", () => {
     const state = run(start(newGame(), 5), { type: "buzz", team: 0 }, { type: "faceOffAnswer", team: 0, answer: 1 });
     render(<GameBoard snapshot={snap(state)} eventBatch={null} />);

@@ -37,6 +37,21 @@ describe("toSnapshot", () => {
     for (const hidden of [1, 2, 4, 5, 6]) expect(json).not.toContain(`SECRET ${hidden}`);
   });
 
+  it("keeps the question off the board until someone buzzes in, then keeps it up", () => {
+    const before = toSnapshot(started());
+    expect(before.round!.question).toBeNull();
+    expect(JSON.stringify(before)).not.toContain(survey.question);
+
+    const buzzed = run(started(), { type: "buzz", team: 0 });
+    expect(toSnapshot(buzzed).round!.question).toBe(survey.question);
+    const nextPair = run(
+      buzzed,
+      { type: "faceOffAnswer", team: 0, answer: null },
+      { type: "faceOffAnswer", team: 1, answer: null },
+    );
+    expect(toSnapshot(nextPair).round!.question).toBe(survey.question);
+  });
+
   it("names the players at the buzzer and carries scores", () => {
     const snapshot = toSnapshot(run(started(), { type: "adjustScore", team: 1, delta: 40 }));
     expect(snapshot.round!.faceOff.players).toEqual(["S1", "J1"]);

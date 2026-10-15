@@ -32,15 +32,18 @@ test("a round with a face-off, strikes and a steal, mirrored on the board", asyn
   await press(page, "n");
 
   // The board shows 8 tiles; hidden ones never contain answer text.
+  // The question stays off the board until someone buzzes in.
   const question = await page.locator(".hg-question__text").textContent();
-  await expect(board.getByText(question!)).toBeVisible();
+  await expect(board.getByText(question!)).toHaveCount(0);
   const answers = board.getByRole("list", { name: "Answer board" }).getByRole("listitem");
   await expect(answers).toHaveCount(8);
   const hiddenCount = await hiddenTiles(board).count();
   expect(hiddenCount).toBeGreaterThanOrEqual(6);
 
   // Face-off: Smith buzzes and gives the #1 answer.
-  await press(page, "q", "1");
+  await press(page, "q");
+  await expect(board.getByText(question!)).toBeVisible(); // shown once someone buzzes in
+  await press(page, "1");
   await expect(board.getByRole("listitem", { name: /^Answer 1: .+ points$/ })).toBeVisible();
   await expect(board.getByText("The Smith family won the face-off")).toBeVisible();
 
