@@ -1,0 +1,57 @@
+.host-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.host-app__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--host-surface);
+  border-bottom: 1px solid var(--host-border);
+  flex-wrap: wrap;
+}
+
+.host-app__title {
+  font-weight: 700;
+}
+
+.host-app__bank {
+  color: var(--host-muted);
+  font-size: 0.9em;
+  margin-right: auto;
+}
+
+.host-app__board-button,
+.host-app__end-button {
+  border: 1px solid var(--host-border);
+  background: var(--host-surface-2);
+  color: var(--host-text);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.host-app__board-button {
+  background: var(--host-accent);
+  color: var(--host-accent-text);
+  border-color: transparent;
+}
+
+.host-app__main {
+  flex: 1;
+  padding: 16px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.host-app__loading {
+  color: var(--host-muted);
+}
+
+.host-app__error {
+  color: var(--host-bad);
+}

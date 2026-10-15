@@ -1,23 +1,12 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { loadBank, type Survey } from "./data/bank";
+import { BoardApp } from "./ui/board/BoardApp";
+import { HostApp } from "./ui/host/HostApp";
+import "./ui/theme.css";
 
-// Placeholder until Phase 5 builds the host console and game board.
-function App() {
-  const [bank, setBank] = useState<Survey[] | null>(null);
-  useEffect(() => {
-    loadBank().then(setBank);
-  }, []);
-  return (
-    <main style={{ fontFamily: "sans-serif", padding: 16 }}>
-      <h1>Family Feud</h1>
-      <p>{bank ? `${bank.length} playable surveys loaded.` : "Loading question bank…"}</p>
-    </main>
-  );
-}
+// One page, two windows: the host console (default) and the audience board (#/board).
+const isBoard = window.location.hash === "#/board";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <StrictMode>{isBoard ? <BoardApp /> : <HostApp />}</StrictMode>,
 );

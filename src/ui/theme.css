@@ -1,0 +1,110 @@
+/* Shared design tokens for the host console and the game board.
+   An original look in the spirit of a TV game show: deep blue board, gold trim. */
+
+:root {
+  /* Board (audience screen) */
+  --board-bg: #050b2e;
+  --board-bg-glow: #12207a;
+  --board-frame: #c9a227;
+  --board-frame-light: #f3d77a;
+  --tile-hidden: #0b2a8f;
+  --tile-hidden-edge: #4f7dff;
+  --tile-revealed: #133bb8;
+  --tile-shown: #26306b;
+  --tile-empty: #071a5c;
+  --tile-text: #ffffff;
+  --points-bg: #0a1f73;
+  --number-oval: #0a1f73;
+  --number-oval-edge: #9fc0ff;
+  --strike: #e8191f;
+  --score-bg: #0a1f73;
+  --banner: #f3d77a;
+  --banner-text: #1a1300;
+
+  /* Host console */
+  --host-bg: #f5f6fa;
+  --host-surface: #ffffff;
+  --host-surface-2: #eceef5;
+  --host-text: #141824;
+  --host-muted: #5b6275;
+  --host-border: #d5d9e5;
+  --host-accent: #1d4ed8;
+  --host-accent-text: #ffffff;
+  --host-good: #15803d;
+  --host-bad: #b91c1c;
+  --host-warn: #b45309;
+  --team-0: #1d4ed8;
+  --team-1: #b91c1c;
+
+  --radius: 10px;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-board: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --host-bg: #0f1220;
+    --host-surface: #181c2e;
+    --host-surface-2: #22273d;
+    --host-text: #e8eaf2;
+    --host-muted: #9aa1b8;
+    --host-border: #2e3450;
+    --host-accent: #4f7dff;
+    --host-good: #22c55e;
+    --host-bad: #f87171;
+    --host-warn: #f59e0b;
+    --team-0: #6b93ff;
+    --team-1: #f87171;
+  }
+}
+
+:root[data-theme="dark"] {
+  --host-bg: #0f1220;
+  --host-surface: #181c2e;
+  --host-surface-2: #22273d;
+  --host-text: #e8eaf2;
+  --host-muted: #9aa1b8;
+  --host-border: #2e3450;
+  --host-accent: #4f7dff;
+  --host-good: #22c55e;
+  --host-bad: #f87171;
+  --host-warn: #f59e0b;
+  --team-0: #6b93ff;
+  --team-1: #f87171;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--host-bg);
+  color: var(--host-text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -8,6 +8,7 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 4000 },
   test: {
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-    coverage: { include: ["src/engine/**", "src/data/**"] },
+    setupFiles: ["src/test/setup.ts"],
+    coverage: { include: ["src/engine/**", "src/data/**", "src/app/**"] },
   },
 });
