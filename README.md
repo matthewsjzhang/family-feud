@@ -15,7 +15,12 @@ A browser version of Family Feud that follows the rules of the modern TV show (s
 ```bash
 npm install
 npm test
+npm run test:e2e
 npm run dev
 ```
+
+Open the dev server's URL for the host console, then click **Open game board** and put that window on the TV. Both windows must be in the same browser.
+
+The first `npm run test:e2e` needs Playwright's browser: `npx playwright install chromium`.
 
 See [docs/PLAN.md](docs/PLAN.md) for the rules, presets and build plan.
