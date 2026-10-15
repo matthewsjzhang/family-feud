@@ -71,6 +71,13 @@ export interface BoardSnapshot {
   winner: Team | null;
   /** Set while Fast Money is being played; the board switches to the Fast Money screen. */
   fastMoney: FastMoneyView | null;
+  /** The returning champion family in this game and the games they've won so far. */
+  champion: ChampionView | null;
+}
+
+export interface ChampionView {
+  team: Team;
+  wins: number;
 }
 
 export type BoardEvent =
@@ -118,11 +125,16 @@ export function toFastMoneyView(fm: FastMoneyState, family: string): FastMoneyVi
   };
 }
 
-export function toSnapshot(state: GameState, fastMoney: FastMoneyState | null = null): BoardSnapshot {
+export function toSnapshot(
+  state: GameState,
+  fastMoney: FastMoneyState | null = null,
+  champion: ChampionView | null = null,
+): BoardSnapshot {
   const [a, b] = state.families;
   const r = state.round;
   return {
     fastMoney: fastMoney && state.winner !== null ? toFastMoneyView(fastMoney, state.families[state.winner].name) : null,
+    champion,
     families: [
       { name: a.name, score: a.score },
       { name: b.name, score: b.score },

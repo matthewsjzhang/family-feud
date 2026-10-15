@@ -99,6 +99,10 @@ export interface PickerOptions {
 export interface QuestionPicker {
   /** Pick an unused survey whose answer count is within the range, and mark it used. */
   pick(range: SizeRange): Survey;
+  /** Has this survey been played (and not yet recycled)? */
+  isUsed(id: string): boolean;
+  /** Record a survey the host chose by hand, so it isn't picked again. */
+  markUsed(id: string): void;
 }
 
 export function createPicker(bank: readonly Survey[], options: PickerOptions = {}): QuestionPicker {
@@ -127,6 +131,11 @@ export function createPicker(bank: readonly Survey[], options: PickerOptions = {
       used.add(choice.id);
       store.save([...used]);
       return choice;
+    },
+    isUsed: (id) => used.has(id),
+    markUsed(id) {
+      used.add(id);
+      store.save([...used]);
     },
   };
 }

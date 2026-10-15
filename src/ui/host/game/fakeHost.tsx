@@ -1,6 +1,7 @@
 // Test harness: a GameHost backed by the real engine and matcher, with fixed surveys
 // instead of the 3.7 MB question bank. Mirrors useGameHost's behaviour closely.
 
+import { INERT_CHAMPIONS_AND_BROWSER } from "../../../app/hostStubs";
 import { useRef, useState } from "react";
 import type { GameHost } from "../../../app/useGameHost";
 import type { Survey } from "../../../data/bank";
@@ -107,6 +108,7 @@ export function FakeHostGame({ rules = DEFAULT_RULES, surveys = [BEACH, PETS, BR
     !!round && round.phase === "faceOff" && round.faceOff.buzzed === null && round.slots.every((s) => s === "hidden");
 
   const host: GameHost = {
+    ...INERT_CHAMPIONS_AND_BROWSER,
     bankReady: true,
     bankSize: surveys.length,
     suddenDeathBankSize: 0,

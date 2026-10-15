@@ -26,6 +26,7 @@ import {
   type FastMoneyAction,
   type FastMoneyState,
 } from "../engine/fastMoney";
+import { recordResult, type ChampionRecord } from "../engine/champions";
 import { matchAnswer, type MatchResult } from "../engine/match";
 import type { GameRules } from "../engine/rules";
 import { createHistory, undoableReducer, type History } from "../engine/undo";
@@ -40,6 +41,41 @@ export interface FamilySetup {
 export interface GameSetup {
   rules: GameRules;
   families: [FamilySetup, FamilySetup];
+  /** Family 1 is the returning champion family (from `GameHost.champion`). */
+  championReturning?: boolean;
+}
+
+export interface QuestionBanks {
+  main: Survey[];
+  suddenDeath: Survey[];
+}
+
+const CHAMPION_KEY = "feud.champion";
+
+function loadChampion(): ChampionRecord | null {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(CHAMPION_KEY) ?? "null");
+    if (!parsed || typeof parsed !== "object") return null;
+    const c = parsed as ChampionRecord;
+    const ok =
+      typeof c.family?.name === "string" &&
+      Array.isArray(c.family.players) &&
+      c.family.players.every((p) => typeof p === "string") &&
+      Number.isInteger(c.wins) &&
+      Number.isFinite(c.winnings);
+    return ok ? c : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveChampion(champion: ChampionRecord | null) {
+  try {
+    if (champion) localStorage.setItem(CHAMPION_KEY, JSON.stringify(champion));
+    else localStorage.removeItem(CHAMPION_KEY);
+  } catch {
+    // Storage blocked: champions last for this session only.
+  }
 }
 
 export interface GameHost {
@@ -73,6 +109,29 @@ export interface GameHost {
   /** Open (or focus) the audience board window. */
   openBoard(): void;
 
+  // Champions
+  /** The family defending its title (saved between sessions); null if none. */
+  champion: ChampionRecord | null;
+  /** Which family in the current game is the returning champion, if any. */
+  championTeam: 0 | 1 | null;
+  /** Set right after a family reaches the win limit, until the next game starts. */
+  retiredChampion: ChampionRecord | null;
+  /** After a won game: record the result (and any Fast Money winnings) and go to setup for the next game. */
+  finishGame(): void;
+  /** Forget the current champions (e.g. a new group of players). */
+  clearChampion(): void;
+
+  // Question bank browser
+  /** Both banks once loaded, for browsing. */
+  banks: QuestionBanks | null;
+  /** Has this survey already been played (main or Sudden Death bank)? */
+  isUsed(id: string): boolean;
+  /** The survey the host picked to play next, if any. */
+  queued: Survey | null;
+  /** Play this survey (by id) at the next round it fits; replaces any earlier pick. */
+  queueSurvey(id: string): void;
+  clearQueue(): void;
+
   // Fast Money (after the game is won)
   /** Null unless Fast Money is being played. */
   fastMoney: FastMoneyState | null;
@@ -94,7 +153,15 @@ const reduceFastMoney = undoableReducer(fastMoneyReducer);
 const CLOCK_TICK_MS = 100;
 
 export function useGameHost(channelFactory: () => SyncChannel = createSyncChannel): GameHost {
-  const [banks, setBanks] = useState<{ main: Survey[]; suddenDeath: Survey[] } | null>(null);
+  const [banks, setBanks] = useState<QuestionBanks | null>(null);
+  const [champion, setChampion] = useState<ChampionRecord | null>(loadChampion);
+  const [championTeam, setChampionTeam] = useState<0 | 1 | null>(null);
+  const championRef = useRef({ champion, championTeam });
+  championRef.current = { champion, championTeam };
+  const [retiredChampion, setRetiredChampion] = useState<ChampionRecord | null>(null);
+  const [queued, setQueued] = useState<Survey | null>(null);
+  /** The latest Fast Money payout in this game, kept after leaving the Fast Money screen. */
+  const payoutRef = useRef(0);
   const [history, setHistory] = useState<History<GameState> | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const historyRef = useRef(history);
@@ -109,7 +176,9 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
   /** Send the board everything it may see: the game, plus Fast Money while it runs. */
   const broadcast = useCallback((events: BoardEvent[]) => {
     const game = historyRef.current?.present;
-    const snapshot = game ? toSnapshot(game, fmRef.current?.present ?? null) : null;
+    const { champion: c, championTeam: team } = championRef.current;
+    const championView = c && team !== null ? { team, wins: c.wins } : null;
+    const snapshot = game ? toSnapshot(game, fmRef.current?.present ?? null, championView) : null;
     channelRef.current?.post({ type: "snapshot", snapshot, events });
   }, []);
 
@@ -132,6 +201,8 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
 
   const commitFastMoney = useCallback(
     (next: History<FastMoneyState> | null, events: BoardEvent[] = []) => {
+      const outcome = next?.present.outcome;
+      if (outcome) payoutRef.current = outcome.payout;
       setFastMoney(next);
       setLastError(null);
       broadcast(events);
@@ -234,12 +305,28 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
       lastError,
       newGame(setup) {
         try {
-          commit(createHistory(createGame(setup.rules, setup.families)));
+          const game = createGame(setup.rules, setup.families);
+          const returning = !!setup.championReturning && champion !== null;
+          // Starting without the champions means a new group: forget the old champions.
+          if (!returning && champion) {
+            setChampion(null);
+            saveChampion(null);
+          }
+          const team = returning ? 0 : null;
+          championRef.current = { champion: returning ? champion : null, championTeam: team };
+          setChampionTeam(team);
+          setRetiredChampion(null);
+          payoutRef.current = 0;
+          commit(createHistory(game));
         } catch (error) {
           fail(error);
         }
       },
-      endGame: () => commit(null),
+      endGame() {
+        setChampionTeam(null);
+        championRef.current = { champion, championTeam: null };
+        commit(null);
+      },
       apply,
       can: (action) => !!state && canApply(state, action),
       startNextRound() {
@@ -247,7 +334,20 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         const picker = next && pickerFor(next.kind);
         if (!next || !picker) return;
         try {
-          const survey = picker.pick({ min: next.minAnswers, max: next.maxAnswers });
+          // A question the host picked in the browser is used as soon as it fits the round.
+          const fits =
+            queued &&
+            queued.answerCount >= next.minAnswers &&
+            queued.answerCount <= next.maxAnswers &&
+            (next.kind === "suddenDeath") === (banks?.suddenDeath.some((s) => s.id === queued.id) ?? false);
+          let survey: Survey;
+          if (fits && queued) {
+            survey = queued;
+            picker.markUsed(queued.id);
+            setQueued(null);
+          } else {
+            survey = picker.pick({ min: next.minAnswers, max: next.maxAnswers });
+          }
           apply({ type: "startRound", survey });
         } catch (error) {
           fail(error);
@@ -293,6 +393,43 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
       openBoard() {
         window.open(`${window.location.pathname}#/board`, "feud-board", "popup,width=1280,height=720");
       },
+      champion,
+      championTeam,
+      retiredChampion,
+      finishGame() {
+        if (!state || state.winner === null) return;
+        const winner = state.families[state.winner];
+        const update = recordResult(
+          champion,
+          {
+            winner: { name: winner.name, players: [...winner.players] },
+            winnerWasChampion: championTeam !== null && state.winner === championTeam,
+            payout: payoutRef.current,
+          },
+          state.rules.championLimit,
+        );
+        setChampion(update.champion);
+        saveChampion(update.champion);
+        setRetiredChampion(update.retired);
+        setChampionTeam(null);
+        championRef.current = { champion: update.champion, championTeam: null };
+        payoutRef.current = 0;
+        commit(null);
+      },
+      clearChampion() {
+        setChampion(null);
+        saveChampion(null);
+        setRetiredChampion(null);
+      },
+      banks,
+      isUsed: (id) => !!pickersRef.current && (pickersRef.current.main.isUsed(id) || pickersRef.current.suddenDeath.isUsed(id)),
+      queued,
+      queueSurvey(id) {
+        const found = banks && [...banks.main, ...banks.suddenDeath].find((s) => s.id === id);
+        if (found) setQueued(found);
+        else fail(`No survey with id "${id}".`);
+      },
+      clearQueue: () => setQueued(null),
       fastMoney,
       canStartFastMoney,
       startFastMoney(players) {
@@ -333,6 +470,10 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
     // pickerFor only reads a ref, so it doesn't need to be a dependency.
     [
       banks,
+      champion,
+      championTeam,
+      retiredChampion,
+      queued,
       state,
       upcoming,
       history,

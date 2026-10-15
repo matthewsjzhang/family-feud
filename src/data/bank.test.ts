@@ -98,6 +98,16 @@ describe("createPicker", () => {
     expect(() => picker.pick({ min: 9, max: 12 })).toThrow(/9.*12/);
   });
 
+  it("reports used surveys and never picks one the host chose by hand", () => {
+    const store = memoryStore();
+    const picker = createPicker(bank, { store, random: seeded() });
+    expect(picker.isUsed("s0")).toBe(false);
+    picker.markUsed("s0");
+    expect(picker.isUsed("s0")).toBe(true);
+    expect(store.load()).toContain("s0");
+    expect(picker.pick({ min: 4, max: 4 }).id).toBe("s1");
+  });
+
   it("can exclude specific surveys, e.g. ones already on screen", () => {
     const picker = createPicker(bank, { store: memoryStore(), random: seeded() });
     const s = picker.pick({ min: 4, max: 4, exclude: ["s0"] });

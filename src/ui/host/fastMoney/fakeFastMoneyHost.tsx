@@ -1,6 +1,7 @@
 // Test harness: a GameHost in Fast Money, backed by the real Fast Money reducer, undo
 // history and matcher, with five hand-made surveys and a clock the test ticks by hand.
 
+import { INERT_CHAMPIONS_AND_BROWSER } from "../../../app/hostStubs";
 import { useEffect, useRef, useState } from "react";
 import type { GameHost } from "../../../app/useGameHost";
 import type { Survey } from "../../../data/bank";
@@ -142,6 +143,7 @@ export function FakeFastMoneyHost({ clock, rules = DEFAULT_RULES, players = [0, 
   const fm = fmHistory.present;
 
   const host: GameHost = {
+    ...INERT_CHAMPIONS_AND_BROWSER,
     bankReady: true,
     bankSize: FM_SURVEYS.length,
     suddenDeathBankSize: 0,

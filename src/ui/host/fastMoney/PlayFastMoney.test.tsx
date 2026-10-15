@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { INERT_CHAMPIONS_AND_BROWSER } from "../../../app/hostStubs";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -15,6 +16,7 @@ function setup({ canStart = true, rules = DEFAULT_RULES }: { canStart?: boolean;
   state.winner = 0;
   const startFastMoney = vi.fn<(players: [number, number]) => void>();
   const host: GameHost = {
+    ...INERT_CHAMPIONS_AND_BROWSER,
     bankReady: true,
     bankSize: 10,
     suddenDeathBankSize: 0,

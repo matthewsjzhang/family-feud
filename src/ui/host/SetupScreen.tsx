@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { FamilySetup, GameSetup } from "../../app/useGameHost";
+import type { ChampionRecord } from "../../engine/champions";
 import { createPresetStore, localPresetStorage, type PresetStore } from "../../engine/presets";
 import { DEFAULT_RULES } from "../../engine/rules";
 import { RulesEditor } from "./RulesEditor";
@@ -14,6 +15,12 @@ export interface SetupScreenProps {
   onStart(setup: GameSetup): void;
   /** Where presets come from; tests inject an in-memory store. */
   presetStore?: PresetStore;
+  /** The returning champions (they play as family 1, with `championReturning: true`). */
+  champion?: ChampionRecord | null;
+  /** A family that just retired undefeated, to congratulate. */
+  retiredChampion?: ChampionRecord | null;
+  /** Forget the champions (a new group of players). */
+  onClearChampion?(): void;
 }
 
 export function SetupScreen({ onStart, presetStore }: SetupScreenProps) {

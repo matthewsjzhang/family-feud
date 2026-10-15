@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_RULES } from "../engine/rules";
 import type { SyncChannel, SyncMessage } from "../sync/channel";
 import { useGameHost, type GameSetup } from "./useGameHost";
@@ -179,6 +179,139 @@ describe("useGameHost", () => {
       act(() => hook.result.current.startFastMoney([0, 1]));
       act(() => hook.result.current.newGame(setup));
       expect(hook.result.current.fastMoney).toBeNull();
+    });
+  });
+
+  describe("champions and the question queue", () => {
+    beforeEach(() => localStorage.clear());
+
+    /** Plays round 1 of a game that the first round decides (target 1); `team` wins it. */
+    function winRound1(hook: Awaited<ReturnType<typeof ready>>["hook"], team: 0 | 1) {
+      act(() => hook.result.current.startNextRound());
+      for (const action of [
+        { type: "buzz", team },
+        { type: "faceOffAnswer", team, answer: 0 },
+        { type: "playOrPass", play: true },
+        { type: "answer", answer: null },
+        { type: "answer", answer: null },
+        { type: "answer", answer: null },
+        { type: "steal", answer: null },
+      ] as const) {
+        act(() => hook.result.current.apply(action));
+      }
+      expect(hook.result.current.state!.winner).toBe(team);
+    }
+
+    const quickRules = (championLimit: number | null = 5) => ({
+      ...structuredClone(DEFAULT_RULES),
+      id: "quick",
+      builtIn: false,
+      win: { type: "target" as const, target: 1 },
+      championLimit,
+    });
+
+    it("crowns the winner, brings them back as family 1, and counts their wins and Fast Money winnings", async () => {
+      const { hook, sent } = await ready();
+      act(() => hook.result.current.newGame({ ...setup, rules: quickRules() }));
+      winRound1(hook, 1); // Jones win game 1
+
+      // Fast Money: one top answer for player 1, nothing for player 2.
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      for (const action of [
+        { type: "startClock" },
+        { type: "giveAnswer", text: "anything" },
+        { type: "endTurn" },
+        { type: "judge", question: 0, answer: 0 },
+        { type: "startPlayer2" },
+        { type: "startClock" },
+        { type: "endTurn" },
+      ] as const) {
+        act(() => hook.result.current.applyFastMoney(action));
+      }
+      const payout = hook.result.current.fastMoney!.outcome!.payout;
+      expect(payout).toBeGreaterThan(0);
+      act(() => hook.result.current.endFastMoney());
+
+      act(() => hook.result.current.finishGame());
+      expect(hook.result.current.state).toBeNull();
+      expect(hook.result.current.champion).toEqual({ family: setup.families[1], wins: 1, winnings: payout });
+      expect(JSON.parse(localStorage.getItem("feud.champion")!)).toMatchObject({ wins: 1 });
+
+      // Game 2: the champions return as family 1 and the board is told.
+      const challengers = { name: "Lee", players: ["L1", "L2", "L3", "L4", "L5"] };
+      act(() =>
+        hook.result.current.newGame({
+          rules: quickRules(),
+          families: [hook.result.current.champion!.family, challengers],
+          championReturning: true,
+        }),
+      );
+      expect(hook.result.current.championTeam).toBe(0);
+      expect((sent.at(-1) as { snapshot: { champion: unknown } }).snapshot.champion).toEqual({ team: 0, wins: 1 });
+      winRound1(hook, 0);
+      act(() => hook.result.current.finishGame());
+      expect(hook.result.current.champion).toMatchObject({ family: { name: "Jones" }, wins: 2, winnings: payout });
+    });
+
+    it("retires the champions undefeated at the preset's win limit", async () => {
+      const { hook } = await ready();
+      act(() => hook.result.current.newGame({ ...setup, rules: quickRules(2) }));
+      winRound1(hook, 0);
+      act(() => hook.result.current.finishGame());
+      act(() =>
+        hook.result.current.newGame({
+          rules: quickRules(2),
+          families: [hook.result.current.champion!.family, setup.families[1]],
+          championReturning: true,
+        }),
+      );
+      winRound1(hook, 0);
+      act(() => hook.result.current.finishGame());
+      expect(hook.result.current.champion).toBeNull();
+      expect(hook.result.current.retiredChampion).toMatchObject({ family: { name: "Smith" }, wins: 2 });
+      expect(localStorage.getItem("feud.champion")).toBeNull();
+    });
+
+    it("loses the title to the challengers, and forgets champions when a fresh game starts without them", async () => {
+      const { hook } = await ready();
+      act(() => hook.result.current.newGame({ ...setup, rules: quickRules() }));
+      winRound1(hook, 0);
+      act(() => hook.result.current.finishGame());
+      act(() =>
+        hook.result.current.newGame({
+          rules: quickRules(),
+          families: [hook.result.current.champion!.family, setup.families[1]],
+          championReturning: true,
+        }),
+      );
+      winRound1(hook, 1);
+      act(() => hook.result.current.finishGame());
+      expect(hook.result.current.champion).toMatchObject({ family: { name: "Jones" }, wins: 1 });
+
+      act(() => hook.result.current.newGame(setup));
+      expect(hook.result.current.champion).toBeNull();
+      expect(hook.result.current.championTeam).toBeNull();
+    });
+
+    it("plays a question the host picked in the browser when it fits the round", async () => {
+      const { hook } = await ready();
+      const banks = hook.result.current.banks!;
+      const six = banks.main.find((s) => s.answerCount === 6 && !hook.result.current.isUsed(s.id))!;
+      const sd = banks.suddenDeath[0]!;
+      act(() => hook.result.current.newGame(setup));
+
+      // A Sudden Death question doesn't fit round 1, so it stays queued and a random question is used.
+      act(() => hook.result.current.queueSurvey(sd.id));
+      act(() => hook.result.current.startNextRound());
+      expect(hook.result.current.state!.round!.survey.id).not.toBe(sd.id);
+      expect(hook.result.current.queued?.id).toBe(sd.id);
+
+      act(() => hook.result.current.undo());
+      act(() => hook.result.current.queueSurvey(six.id));
+      act(() => hook.result.current.startNextRound());
+      expect(hook.result.current.state!.round!.survey.id).toBe(six.id);
+      expect(hook.result.current.queued).toBeNull();
+      expect(hook.result.current.isUsed(six.id)).toBe(true);
     });
   });
 
