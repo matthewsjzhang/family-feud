@@ -11,6 +11,8 @@ import {
   queryWords,
   searchBank,
   seasonsOf,
+  sizeNote,
+  fitsUpcoming,
   type BrowserFilters,
   type FilterContext,
 } from "./bankSearch";
@@ -130,14 +132,68 @@ describe("searchBank filters", () => {
 });
 
 describe("fitProblem", () => {
-  it("explains why the next round would not use a survey", () => {
-    expect(fitProblem(MIL, "main", round(6, 8))).toBe("Round 2 needs a 6-8 answer survey");
-    expect(fitProblem(MIL, "main", round(6, 6))).toBe("Round 2 needs a 6 answer survey");
+  it("explains why the next round would not use a survey: only the kind matters", () => {
+    // A hand-picked survey of any size plays at the next main round.
+    expect(fitProblem(MIL, "main", round(6, 8))).toBeNull();
+    expect(fitProblem(MIL, "main", round(6, 6))).toBeNull();
     expect(fitProblem(BEACH, "main", round(6, 8))).toBeNull();
     expect(fitProblem(MIL, "suddenDeath", round(4, 8))).toBe("Sudden Death questions only play in Sudden Death");
     expect(fitProblem(MIL, "suddenDeath", SUDDEN)).toBeNull();
     expect(fitProblem(MIL, "main", SUDDEN)).toMatch(/next round is Sudden Death/);
     expect(fitProblem(MIL, "main", null)).toBeNull();
+  });
+});
+
+describe("sizeNote and fitsUpcoming", () => {
+  it("adds a soft note when a main-game survey is an unusual size for the next round", () => {
+    expect(sizeNote(MIL, "main", round(6, 8))).toBe("Round 2 usually has 6-8 answers; this one has 4. That's fine, it still plays.");
+    expect(sizeNote(MIL, "main", round(6, 6))).toMatch(/usually has 6 answers/);
+    expect(sizeNote(BEACH, "main", round(6, 8))).toBeNull();
+    expect(sizeNote(MIL, "main", SUDDEN)).toBeNull();
+    expect(sizeNote(MIL, "suddenDeath", round(6, 8))).toBeNull();
+    expect(sizeNote(MIL, "main", null)).toBeNull();
+  });
+
+  it("fitsUpcoming means the right kind and the usual size", () => {
+    expect(fitsUpcoming(BEACH, "main", round(6, 8))).toBe(true);
+    expect(fitsUpcoming(MIL, "main", round(6, 8))).toBe(false);
+    expect(fitsUpcoming(MIL, "suddenDeath", SUDDEN)).toBe(true);
+    expect(fitsUpcoming(BEACH, "main", SUDDEN)).toBe(false);
+    expect(fitsUpcoming(BEACH, "main", null)).toBe(false);
+  });
+});
+
+describe("custom questions", () => {
+  const CUSTOM_MAIN = survey("custom-q-1", "Name a picnic food", ["SANDWICH", "CHIPS", "FRUIT"], { season: 0, source: "custom", custom: "main" });
+  const CUSTOM_SD = survey("custom-q-2", "Name a red fruit", ["APPLE"], { season: 0, source: "custom", custom: "suddenDeath" });
+  const MIXED = [CUSTOM_MAIN, ...SMALL];
+
+  it("filters by source, defaulting to all", () => {
+    expect(NO_FILTERS.source).toBe("all");
+    expect(search({}, {}, MIXED)).toEqual(["custom-q-1", "mil", "beach", "dont", "cafe"]);
+    expect(search({ source: "custom" }, {}, MIXED)).toEqual(["custom-q-1"]);
+    expect(search({ source: "original" }, {}, MIXED)).toEqual(["mil", "beach", "dont", "cafe"]);
+    // Older callers that build filters without `source` keep the old behaviour.
+    const { source: _omit, ...legacy } = NO_FILTERS;
+    expect(ids(searchBank(MIXED, legacy, ctx()))).toHaveLength(5);
+  });
+
+  it("leaves custom questions out when a season is chosen, and lists no season 0", () => {
+    expect(search({ season: 18 }, {}, MIXED)).toEqual(["beach", "dont"]);
+    expect(seasonsOf(MIXED)).toEqual([16, 18, 26]);
+    expect(seasonsOf([CUSTOM_MAIN])).toEqual([]);
+  });
+
+  it("composes source with text and the usual-size filter", () => {
+    expect(search({ source: "custom", query: "chips" }, {}, MIXED)).toEqual(["custom-q-1"]);
+    expect(search({ source: "custom", query: "towel" }, {}, MIXED)).toEqual([]);
+    // A 3-answer custom question is not the usual size for a 6-8 answer round...
+    expect(search({ fitsNext: true }, { upcoming: round(6, 8) }, MIXED)).toEqual(["beach", "dont"]);
+    // ...but nothing stops it playing next.
+    expect(fitProblem(CUSTOM_MAIN, "main", round(6, 8))).toBeNull();
+    expect(sizeNote(CUSTOM_MAIN, "main", round(6, 8))).toMatch(/this one has 3/);
+    expect(fitProblem(CUSTOM_SD, "suddenDeath", round(6, 8))).toMatch(/only play in Sudden Death/);
+    expect(search({ fitsNext: true, source: "custom" }, { upcoming: SUDDEN, bank: "suddenDeath" }, [CUSTOM_SD])).toEqual(["custom-q-2"]);
   });
 });
 

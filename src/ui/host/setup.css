@@ -1,4 +1,4 @@
-/* Setup screen and rules editor. Uses theme.css tokens only. */
+/* Setup screen, rules editor and question set editor. Uses theme.css tokens only. */
 
 .setup {
   display: flex;
@@ -482,6 +482,184 @@
   font-weight: 600;
 }
 
+/* Question sets: setup panel */
+
+.qs-notes {
+  margin: 12px 0 0;
+  padding: 10px 12px 10px 28px;
+  border-left: 4px solid var(--host-warn);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--host-surface-2);
+  overflow-wrap: anywhere;
+}
+
+.qs-notes li + li {
+  margin-top: 4px;
+}
+
+.qs-panel__actions {
+  margin-top: 12px;
+}
+
+/* Question set editor */
+
+.qs-editor__name {
+  max-width: 420px;
+}
+
+.qs-editor__hint {
+  margin: 0;
+}
+
+.qs-editor__random {
+  margin: 0;
+  font-weight: 600;
+}
+
+.qs-editor__warn {
+  margin: 0;
+  color: var(--host-warn);
+  font-weight: 600;
+}
+
+.qs-editor__add {
+  align-self: flex-start;
+}
+
+.qs-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qs-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--host-border);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--host-surface-2);
+}
+
+.qs-entry__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.qs-entry__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--host-muted);
+}
+
+.qs-entry__question {
+  font-weight: 600;
+}
+
+.qs-entry__meta {
+  color: var(--host-muted);
+  font-size: 0.85rem;
+}
+
+.qs-entry__note {
+  color: var(--host-warn);
+  font-size: 0.85rem;
+}
+
+/* Search panel inside a section */
+
+.qs-search {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed var(--host-border);
+  border-radius: calc(var(--radius) * 0.6);
+}
+
+.qs-search__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.qs-search__header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.qs-search__filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 120px);
+  gap: 8px 12px;
+}
+
+.qs-search__filters > :only-child {
+  grid-column: 1 / -1;
+}
+
+.qs-search__count {
+  margin: 0;
+  flex: 1 1 auto;
+  color: var(--host-muted);
+}
+
+.qs-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qs-result {
+  border: 1px solid var(--host-border);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--host-surface);
+}
+
+.qs-result__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+}
+
+.qs-result__head {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--host-text);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.qs-result__answers {
+  margin: 0;
+  padding: 0 12px 10px 36px;
+}
+
 @media (max-width: 600px) {
   .rules-editor {
     padding: 12px;
@@ -510,5 +688,9 @@
 
   .setup__start .setup-button {
     flex: 1 1 auto;
+  }
+
+  .qs-search__filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

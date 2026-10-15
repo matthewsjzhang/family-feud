@@ -1,15 +1,22 @@
 // Search box and filters for the question browser.
 
 import type { RefObject } from "react";
-import type { BankKind, BrowserFilters } from "./bankSearch";
+import type { BankKind, BrowserFilters, SourceFilter } from "./bankSearch";
 
-const ANSWER_COUNTS = [4, 5, 6, 7, 8];
+// Show surveys have 4-8 answers; custom questions may have as few as 2.
+const ANSWER_COUNTS = [2, 3, 4, 5, 6, 7, 8];
+
+const SOURCES: { value: SourceFilter; label: string }[] = [
+  { value: "all", label: "All questions" },
+  { value: "original", label: "From the show" },
+  { value: "custom", label: "My custom questions" },
+];
 
 export interface FilterBarProps {
   bank: BankKind;
   filters: BrowserFilters;
   seasons: readonly number[];
-  /** Label for the "fits the next round" toggle, or null when there is no next round. */
+  /** Label for the "usual size for the next round" toggle, or null when there is no next round. */
   nextRoundLabel: string | null;
   searchRef: RefObject<HTMLInputElement | null>;
   onChange(patch: Partial<BrowserFilters>): void;
@@ -32,6 +39,20 @@ export function FilterBar({ bank, filters, seasons, nextRoundLabel, searchRef, o
           spellCheck={false}
           onChange={(e) => onChange({ query: e.target.value })}
         />
+      </label>
+      <label className="qb-field">
+        <span className="qb-field__label">Source</span>
+        <select
+          className="qb-input"
+          value={filters.source ?? "all"}
+          onChange={(e) => onChange({ source: e.target.value as SourceFilter })}
+        >
+          {SOURCES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="qb-field">
         <span className="qb-field__label">Season</span>
@@ -81,7 +102,8 @@ export function FilterBar({ bank, filters, seasons, nextRoundLabel, searchRef, o
             disabled={nextRoundLabel === null}
             onChange={(e) => onChange({ fitsNext: e.target.checked })}
           />
-          {nextRoundLabel ? `Fits the next round (${nextRoundLabel})` : "Fits the next round (no game running)"}
+          {/* "Usual size", not "fits": any survey of the right kind can be played next. */}
+          {`Usual size for the next round (${nextRoundLabel ?? "no game running"})`}
         </label>
       </div>
     </div>

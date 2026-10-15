@@ -46,7 +46,7 @@ function FakeHost({ upcoming = ROUND_2, used = [], onClose = () => {}, queueSpy 
     ...INERT_CHAMPIONS_AND_BROWSER,
     state: null,
     upcoming,
-    banks: { main: MAIN, suddenDeath: SD },
+    banks: { main: MAIN, suddenDeath: SD, custom: [] as Survey[] },
     isUsed: (id: string) => used.includes(id),
     queued,
     queueSurvey(id: string) {
@@ -127,14 +127,14 @@ describe("QuestionBrowser", () => {
     expect(status()).toHaveTextContent("14 surveys match");
     await user.selectOptions(screen.getByRole("combobox", { name: "Answers" }), "");
 
-    await user.click(screen.getByRole("checkbox", { name: /Fits the next round \(Round 2, 6-8 answers\)/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Usual size for the next round \(Round 2, 6-8 answers\)/ }));
     // 6-8 answer fillers (42), BEACH hidden as played, MIL has 4.
     expect(status()).toHaveTextContent("42 surveys match");
   });
 
   it("disables the fit filter when no round is coming up", () => {
     setup({ upcoming: null });
-    expect(screen.getByRole("checkbox", { name: /Fits the next round/ })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /Usual size for the next round/ })).toBeDisabled();
   });
 
   it("renders a page at a time with Show more", async () => {
@@ -176,15 +176,19 @@ describe("QuestionBrowser", () => {
     expect(within(rowButton(/beach/)).queryByText("Queued")).not.toBeInTheDocument();
   });
 
-  it("warns when a pick does not fit the next round but still queues it", async () => {
+  it("only notes an unusual size, but warns when the kind does not fit the next round", async () => {
     const { user, queueSpy } = setup();
     await user.click(rowButton(/mother-in-law/));
     const play = screen.getByRole("button", { name: "Play this next" });
     expect(play).toBeEnabled();
-    expect(play).toHaveAccessibleDescription(/Round 2 needs a 6-8 answer survey/);
+    // A 4-answer survey plays fine in a 6-8 answer round now: a soft note, no warning.
+    expect(play).not.toHaveAccessibleDescription();
+    expect(screen.getByText(/Round 2 usually has 6-8 answers; this one has 4/)).toBeInTheDocument();
     await user.click(play);
     expect(queueSpy).toHaveBeenCalledWith("mil");
-    expect(screen.getByLabelText("Next question")).toHaveTextContent(/needs a 6-8 answer survey/);
+    const banner = screen.getByLabelText("Next question");
+    expect(banner).not.toHaveTextContent(/wait for a round/);
+    expect(banner).toHaveTextContent(/usually has 6-8 answers/);
 
     await user.click(screen.getByRole("tab", { name: /Sudden Death/ }));
     await user.click(rowButton(/popular pet/));
@@ -211,7 +215,7 @@ describe("QuestionBrowser", () => {
 
   it("closes with the Back button or Escape; Escape first clears a search", async () => {
     const { user, onClose } = setup();
-    await user.click(screen.getByRole("button", { name: /Back to the game/ }));
+    await user.click(screen.getByRole("button", { name: /Back to (the game|setup)/ }));
     expect(onClose).toHaveBeenCalledTimes(1);
 
     await user.type(searchBox(), "beach");

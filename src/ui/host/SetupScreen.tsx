@@ -1,6 +1,7 @@
-// Before the game: name the two families and their players, and pick (or edit) the rules preset.
+// Before the game: name the two families and their players, pick (or edit) the rules preset,
+// and choose random questions or a saved question set.
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FamilySetup, GameSetup, QuestionBanks } from "../../app/useGameHost";
 import type { Survey } from "../../data/bank";
 import type { QuestionSet } from "../../data/questionSets";
@@ -10,6 +11,9 @@ import { DEFAULT_RULES } from "../../engine/rules";
 import { RulesEditor } from "./RulesEditor";
 import { ChampionPanel } from "./setup/ChampionPanel";
 import { FamilyPanel } from "./setup/FamilyPanel";
+import { QuestionSetEditor } from "./setup/QuestionSetEditor";
+import { QuestionSetPanel } from "./setup/QuestionSetPanel";
+import { lookupFromBanks } from "./setup/questionSetSummary";
 import { summarizePreset } from "./setup/presetSummary";
 import { defaultFamilies, finalizeFamilies, loadSetup, saveSetup } from "./setup/setupStorage";
 import "./setup.css";
@@ -48,6 +52,11 @@ export function SetupScreen({
   champion = null,
   retiredChampion = null,
   onClearChampion,
+  questionSets = [],
+  onSaveQuestionSet,
+  onRemoveQuestionSet,
+  banks = null,
+  findSurvey,
 }: SetupScreenProps) {
   const id = useId();
   const [store] = useState(() => presetStore ?? createPresetStore(localPresetStorage()));
@@ -62,11 +71,22 @@ export function SetupScreen({
       champion !== null && initial[1].name.trim().toLowerCase() === champion.family.name.trim().toLowerCase();
     return sameAsChampion ? [initial[0], defaultFamilies()[1]] : initial;
   });
+  const [chosenSetId, setChosenSetId] = useState<string | null>(saved.questionSetId ?? null);
   const [editing, setEditing] = useState(false);
+  /** The question set editor: closed, a new set, or the id of the set being edited. */
+  const [setEditor, setSetEditor] = useState<{ setId: string | null } | null>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
+  const questionSelectRef = useRef<HTMLSelectElement>(null);
+  const newSetRef = useRef<HTMLButtonElement>(null);
+  const editSetRef = useRef<HTMLButtonElement>(null);
+  const setOpener = useRef<"new" | "edit" | null>(null);
 
-  useEffect(() => saveSetup({ presetId, families }), [presetId, families]);
+  // A remembered (or just deleted) set that no longer exists falls back to random questions.
+  const chosenSet = (chosenSetId !== null && questionSets.find((s) => s.id === chosenSetId)) || null;
+  const questionSetId = chosenSet?.id ?? null;
+
+  useEffect(() => saveSetup({ presetId, families, questionSetId }), [presetId, families, questionSetId]);
 
   useEffect(() => {
     // Return focus to "Edit rules" when the editor closes.
@@ -74,11 +94,48 @@ export function SetupScreen({
     wasEditing.current = editing;
   }, [editing]);
 
+  useEffect(() => {
+    // Return focus to the button that opened the question set editor (or the dropdown if it's gone).
+    if (setEditor || !setOpener.current) return;
+    const opener = setOpener.current === "new" ? newSetRef.current : editSetRef.current;
+    setOpener.current = null;
+    (opener ?? questionSelectRef.current)?.focus();
+  }, [setEditor]);
+
+  const lookup = useMemo(() => (banks ? lookupFromBanks(banks) : null), [banks]);
+  const find = lookup && ((surveyId: string) => findSurvey?.(surveyId) ?? lookup(surveyId));
+
   const presets = store.list();
   const rules = store.get(presetId) ?? DEFAULT_RULES;
   const summary = summarizePreset(rules);
   const builtIns = presets.filter((p) => p.builtIn);
   const customs = presets.filter((p) => !p.builtIn);
+
+  if (setEditor && banks && find && onSaveQuestionSet) {
+    const editingSet = setEditor.setId ? (questionSets.find((s) => s.id === setEditor.setId) ?? null) : null;
+    return (
+      <div className="setup">
+        <QuestionSetEditor
+          set={editingSet}
+          rules={rules}
+          banks={banks}
+          find={find}
+          takenNames={questionSets.map((s) => s.name)}
+          onSave={onSaveQuestionSet}
+          onSaved={setChosenSetId}
+          onDelete={
+            onRemoveQuestionSet &&
+            ((setId) => {
+              onRemoveQuestionSet(setId);
+              setChosenSetId(null);
+              setSetEditor(null);
+            })
+          }
+          onClose={() => setSetEditor(null)}
+        />
+      </div>
+    );
+  }
 
   if (editing) {
     return (
@@ -168,6 +225,42 @@ export function SetupScreen({
         </dl>
       </section>
 
+      <QuestionSetPanel
+        sets={questionSets}
+        selected={chosenSet}
+        rules={rules}
+        find={find}
+        onSelect={setChosenSetId}
+        canEdit={banks !== null}
+        selectRef={questionSelectRef}
+        newRef={newSetRef}
+        editRef={editSetRef}
+        onNew={
+          onSaveQuestionSet &&
+          (() => {
+            setOpener.current = "new";
+            setSetEditor({ setId: null });
+          })
+        }
+        onEdit={
+          onSaveQuestionSet &&
+          (() => {
+            setOpener.current = "edit";
+            setSetEditor({ setId: questionSetId });
+          })
+        }
+        onDelete={
+          onRemoveQuestionSet &&
+          (() => {
+            if (!chosenSet) return;
+            if (!window.confirm(`Delete the question set "${chosenSet.name}"? This can't be undone.`)) return;
+            onRemoveQuestionSet(chosenSet.id);
+            setChosenSetId(null);
+            questionSelectRef.current?.focus();
+          })
+        }
+      />
+
       <div className="setup-actions setup__start">
         <button type="button" ref={editButtonRef} className="setup-button" onClick={() => setEditing(true)}>
           Edit rules
@@ -183,8 +276,9 @@ export function SetupScreen({
                     rules,
                     families: [structuredClone(champion.family), finished[1]],
                     championReturning: true,
+                    questionSetId,
                   }
-                : { rules, families: finished },
+                : { rules, families: finished, questionSetId },
             );
           }}
         >

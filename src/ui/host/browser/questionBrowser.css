@@ -269,6 +269,10 @@
   color: var(--host-accent);
 }
 
+.qb-badge--custom {
+  color: var(--host-good);
+}
+
 .qb-row__body {
   padding: 0 14px 12px;
   display: flex;
@@ -319,6 +323,130 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.qb-summary__buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qb-notice:empty {
+  display: none;
+}
+
+.qb-notice {
+  margin: 0;
+  font-weight: 600;
+  color: var(--host-good);
+  overflow-wrap: anywhere;
+}
+
+.qb-queued__note {
+  margin: 4px 0 0;
+}
+
+/* Custom question form */
+
+.qb-form-panel {
+  padding: 12px 14px;
+  border: 1px solid var(--host-accent);
+  border-radius: var(--radius);
+  background: var(--host-surface);
+}
+
+.qb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.qb-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.qb-form__question {
+  resize: vertical;
+  font: inherit;
+}
+
+.qb-form__kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.qb-form__kind legend {
+  margin-bottom: 4px;
+}
+
+.qb-form__answers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.qb-form__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.qb-form__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.qb-form__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Points stay narrow so the answer text keeps the room at phone width. */
+.qb-form__points {
+  flex: 0 0 5.5em;
+  width: 5.5em;
+}
+
+.qb-form__remove {
+  flex: 0 0 auto;
+  min-width: 40px;
+  padding: 8px;
+}
+
+.qb-form__hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.qb-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 10px;
+}
+
+.qb-form__errors {
+  flex: 1 1 220px;
+  min-width: 0;
+  color: var(--host-warn);
+  font-weight: 600;
+}
+
+.qb-form__errors ul {
+  margin: 0;
+  padding-left: 1.2em;
 }
 
 @media (max-width: 600px) {

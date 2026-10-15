@@ -51,7 +51,7 @@ test("champions return for the next game, and the host picks a question in the b
   await page.getByRole("button", { name: "Play this next" }).first().click();
   await expect(page.getByText("Playing next:")).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/p7-2-browser.png`, fullPage: true });
-  await page.getByRole("button", { name: /Back to the game/ }).first().click();
+  await page.getByRole("button", { name: /Back to setup/ }).first().click();
 
   await page.getByRole("button", { name: "Start game" }).click();
   const board = await page.context().newPage();

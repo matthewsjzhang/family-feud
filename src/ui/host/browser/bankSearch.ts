@@ -6,6 +6,9 @@ import type { UpcomingRound } from "../../../engine/mainGame";
 
 export type BankKind = "main" | "suddenDeath";
 
+/** Which questions to list: everything, the show's own surveys, or the host's custom ones. */
+export type SourceFilter = "all" | "original" | "custom";
+
 export interface BrowserFilters {
   /** Free text; every word must appear in the question or an answer. */
   query: string;
@@ -14,8 +17,13 @@ export interface BrowserFilters {
   /** Answer count, or null for any (ignored for the Sudden Death bank). */
   answers: number | null;
   hidePlayed: boolean;
-  /** Only surveys the next round could use. */
+  /**
+   * Only surveys of the usual size for the next round (the size a random draw would use).
+   * Any survey of the right kind can still be played next; this is a browsing aid.
+   */
   fitsNext: boolean;
+  /** Optional so older callers keep compiling; missing means "all". */
+  source?: SourceFilter;
 }
 
 export const NO_FILTERS: BrowserFilters = {
@@ -24,6 +32,7 @@ export const NO_FILTERS: BrowserFilters = {
   answers: null,
   hidePlayed: false,
   fitsNext: false,
+  source: "all",
 };
 
 export interface FilterContext {
@@ -74,40 +83,57 @@ export function indexBank(bank: readonly Survey[]): IndexedSurvey[] {
   return index;
 }
 
-/** Could the next round use this survey? */
+const rangeText = (min: number, max: number) => (min === max ? `${min}` : `${min}-${max}`);
+
+/**
+ * Is this survey the usual size for the next round, i.e. the kind of survey a random
+ * draw would pick? Stricter than "can play next" (see fitProblem): hand-picked surveys
+ * of any size play, so this only drives the "Usual size for the next round" filter.
+ */
 export function fitsUpcoming(survey: Survey, bank: BankKind, upcoming: UpcomingRound | null): boolean {
-  return fitProblem(survey, bank, upcoming) === null && upcoming !== null;
+  if (!upcoming || fitProblem(survey, bank, upcoming) !== null) return false;
+  return upcoming.kind === "suddenDeath" || sizeNote(survey, bank, upcoming) === null;
 }
 
 /**
  * Why a survey would not be used by the very next round, or null when it would be.
- * With no upcoming round (setup screen, game over) there is nothing to warn about yet.
+ * Only the kind matters: a hand-picked main-game survey of any size plays at the next
+ * main round. With no upcoming round (setup screen, game over) there is nothing to warn about.
  */
-export function fitProblem(survey: Survey, bank: BankKind, upcoming: UpcomingRound | null): string | null {
+export function fitProblem(_survey: Survey, bank: BankKind, upcoming: UpcomingRound | null): string | null {
   if (!upcoming) return null;
   if (bank === "suddenDeath") {
     return upcoming.kind === "suddenDeath" ? null : "Sudden Death questions only play in Sudden Death";
   }
   if (upcoming.kind === "suddenDeath") return "The next round is Sudden Death, which uses its own questions";
-  if (survey.answerCount < upcoming.minAnswers || survey.answerCount > upcoming.maxAnswers) {
-    const range =
-      upcoming.minAnswers === upcoming.maxAnswers
-        ? `${upcoming.minAnswers}`
-        : `${upcoming.minAnswers}-${upcoming.maxAnswers}`;
-    return `${upcoming.name} needs a ${range} answer survey`;
-  }
   return null;
 }
+
+/**
+ * A soft, non-blocking note when a main-game survey is a different size from what the
+ * next round usually draws (e.g. a 3-answer custom question in a 6-8 answer round), else null.
+ */
+export function sizeNote(survey: Survey, bank: BankKind, upcoming: UpcomingRound | null): string | null {
+  if (!upcoming || bank !== "main" || upcoming.kind !== "round") return null;
+  const { minAnswers: min, maxAnswers: max } = upcoming;
+  if (survey.answerCount >= min && survey.answerCount <= max) return null;
+  return `${upcoming.name} usually has ${rangeText(min, max)} answers; this one has ${survey.answerCount}. That's fine, it still plays.`;
+}
+
+export const isCustomSurvey = (survey: Survey) => survey.custom !== undefined;
 
 /** Surveys in board order that pass every filter. */
 export function searchBank(bank: readonly Survey[], filters: BrowserFilters, ctx: FilterContext): Survey[] {
   const words = queryWords(filters.query).map((w) => " " + w);
   const answers = ctx.bank === "main" ? filters.answers : null;
   const fits = filters.fitsNext && ctx.upcoming !== null;
+  const source = filters.source ?? "all";
   const out: Survey[] = [];
   for (const { survey, text } of indexBank(bank)) {
     // Cheap checks first; the text scan is the expensive part.
+    // Custom questions have season 0, so choosing a season leaves them out.
     if (filters.season !== null && survey.season !== filters.season) continue;
+    if (source !== "all" && isCustomSurvey(survey) !== (source === "custom")) continue;
     if (answers !== null && survey.answerCount !== answers) continue;
     if (fits && !fitsUpcoming(survey, ctx.bank, ctx.upcoming)) continue;
     if (filters.hidePlayed && ctx.isUsed(survey.id)) continue;
@@ -128,7 +154,7 @@ export function pickRandom(
   return fresh.length ? fresh[Math.floor(random() * fresh.length)]! : null;
 }
 
-/** Distinct seasons in a bank, ascending. */
+/** Distinct seasons in a bank, ascending. Custom questions (season 0) have no season. */
 export function seasonsOf(bank: readonly Survey[]): number[] {
-  return [...new Set(bank.map((s) => s.season))].sort((a, b) => a - b);
+  return [...new Set(bank.filter((s) => !isCustomSurvey(s)).map((s) => s.season))].sort((a, b) => a - b);
 }
