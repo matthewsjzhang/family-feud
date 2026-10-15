@@ -46,6 +46,9 @@ export const BREAKFAST: Survey = survey("breakfast", "Name a breakfast food", [
   ["BACON", 10],
 ]);
 
+/** A single-answer Sudden Death survey, like the ones in data/sudden_death_bank.json. */
+export const SUDDEN_PET: Survey = survey("sudden-pet", "Name the most popular pet", [["DOG", 40]]);
+
 export function survey(id: string, question: string, answers: [string, number][]): Survey {
   return {
     id,
@@ -69,7 +72,7 @@ interface FakeHostGameProps {
   surveys?: Survey[];
 }
 
-export function FakeHostGame({ rules = DEFAULT_RULES, surveys = [BEACH, PETS, BREAKFAST] }: FakeHostGameProps) {
+export function FakeHostGame({ rules = DEFAULT_RULES, surveys = [BEACH, PETS, BREAKFAST, SUDDEN_PET] }: FakeHostGameProps) {
   const [history, setHistory] = useState<History>(() => ({ past: [], present: createGame(rules, FAMILIES) }));
   const [lastError, setLastError] = useState<string | null>(null);
   // Like the real hook, read the latest history so several applies in one event chain up.
@@ -106,6 +109,7 @@ export function FakeHostGame({ rules = DEFAULT_RULES, surveys = [BEACH, PETS, BR
   const host: GameHost = {
     bankReady: true,
     bankSize: surveys.length,
+    suddenDeathBankSize: 0,
     state,
     upcoming: nextRound(state),
     canUndo: history.past.length > 0,

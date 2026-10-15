@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import rawBank from "../../data/question_bank.json";
-import { createPicker, memoryStore, prepareBank, type Survey } from "./bank";
+import { createPicker, loadSuddenDeathBank, memoryStore, prepareBank, type Survey } from "./bank";
 
 function survey(id: string, answerCount: number, extra: Partial<Survey> = {}): Survey {
   return {
@@ -45,6 +45,18 @@ describe("prepareBank", () => {
     const questions = bank.map((s) => s.question.toLowerCase().replace(/\s+/g, " "));
     expect(new Set(questions).size).toBe(bank.length);
     for (const s of bank) expect(s.answers).toHaveLength(s.answerCount);
+  });
+});
+
+describe("Sudden Death bank", () => {
+  it("is separate, single-answer only, and free of flagged surveys", async () => {
+    const bank = await loadSuddenDeathBank();
+    expect(bank.length).toBeGreaterThan(450);
+    expect(bank.every((s) => s.answerCount === 1 && s.answers.length === 1)).toBe(true);
+    expect(bank.some((s) => s.reviewFlags)).toBe(false);
+    expect(bank.every((s) => /feud\d+_1$/.test(s.source))).toBe(true);
+    // The site shows Sudden Death totals tripled: a built-in check that points were read right.
+    expect(bank.every((s) => s.total === s.answers[0]!.points * 3)).toBe(true);
   });
 });
 

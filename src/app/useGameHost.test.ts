@@ -59,6 +59,39 @@ describe("useGameHost", () => {
     expect(JSON.stringify(last)).not.toContain(round.survey.answers[0]!.text);
   });
 
+  it("draws Sudden Death questions from the separate single-answer bank", async () => {
+    const { hook } = await ready();
+    expect(hook.result.current.suddenDeathBankSize).toBeGreaterThan(450);
+    const oneRound = { ...structuredClone(DEFAULT_RULES), id: "one", builtIn: false, rounds: [DEFAULT_RULES.rounds[0]!] };
+    act(() => hook.result.current.newGame({ ...setup, rules: oneRound }));
+    act(() => hook.result.current.startNextRound());
+    // Smith takes control with the #1 answer, strikes out, and Jones' steal fails: well short of 300.
+    for (const action of [
+      { type: "buzz", team: 0 },
+      { type: "faceOffAnswer", team: 0, answer: 0 },
+      { type: "playOrPass", play: true },
+      { type: "answer", answer: null },
+      { type: "answer", answer: null },
+      { type: "answer", answer: null },
+      { type: "steal", answer: null },
+    ] as const) {
+      act(() => hook.result.current.apply(action));
+    }
+    expect(hook.result.current.upcoming).toMatchObject({ kind: "suddenDeath" });
+
+    act(() => hook.result.current.startNextRound());
+    const sd = hook.result.current.state!.round!;
+    expect(sd.kind).toBe("suddenDeath");
+    expect(sd.survey.answerCount).toBe(1);
+    expect(sd.survey.source).toMatch(/feud\d+_1$/);
+
+    // Swapping keeps it a Sudden Death question.
+    act(() => hook.result.current.swapQuestion());
+    const swapped = hook.result.current.state!.round!;
+    expect(swapped.survey.id).not.toBe(sd.survey.id);
+    expect(swapped.survey.source).toMatch(/feud\d+_1$/);
+  });
+
   it("applies actions, reports refused ones, and undoes", async () => {
     const { hook } = await ready();
     act(() => hook.result.current.newGame(setup));

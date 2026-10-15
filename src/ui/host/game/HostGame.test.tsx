@@ -137,7 +137,7 @@ describe("HostGame", () => {
     for (let i = 0; i < 3; i++) await user.click(button(/Strike/));
     await user.click(button(/Steal failed/));
 
-    expect(screen.getByText("Smith win the game!")).toBeInTheDocument();
+    expect(screen.getByText("The Smith family wins the game!")).toBeInTheDocument();
     expect(screen.getByText(/Final score: Smith 320 · Jones -10/)).toBeInTheDocument();
     expect(button("Fast Money (coming soon)")).toBeDisabled();
     expect(queryButton(/Start Round/)).not.toBeInTheDocument();
@@ -158,19 +158,19 @@ describe("HostGame", () => {
 
     await user.click(button(/Start Sudden Death ×3/));
     expect(screen.getByText(/only the #1 answer counts/i)).toBeInTheDocument();
+    // Sudden Death questions come from the single-answer bank.
+    expect(screen.getByText("Name the most popular pet")).toBeInTheDocument();
     expect(answer("DOG")).toHaveTextContent("Only this counts");
-    expect(answer("CAT")).toHaveTextContent("Miss");
 
     await user.click(button(/Smith buzzed/));
     await user.type(entry(), "cat");
-    expect(screen.getByText("Not the #1 answer, so it counts as a miss.")).toBeInTheDocument();
-    await user.keyboard("{Enter}");
-    expect(answer("CAT")).toHaveTextContent("Miss"); // still hidden
+    await user.click(button(/Not on the board/));
+    expect(answer("DOG")).toHaveTextContent("Only this counts"); // still hidden
     // The next pair in rotation is at the buzzer.
     expect(screen.getByText(/Joe \(Jones\) is answering/)).toBeInTheDocument();
 
     await user.click(answer("DOG"));
-    expect(screen.getByText("Jones win the game!")).toBeInTheDocument();
+    expect(screen.getByText("The Jones family wins the game!")).toBeInTheDocument();
     expect(score(1)).toHaveTextContent("120");
   });
 

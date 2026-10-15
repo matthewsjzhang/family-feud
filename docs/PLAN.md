@@ -1,6 +1,6 @@
 # Plan: Family Feud (faithful to the modern syndicated show)
 
-**Complexity:** Medium-Large · **Status:** awaiting confirmation · **Data:** `data/question_bank.json` (8,907 surveys, done and verified)
+**Complexity:** Medium-Large · **Status:** awaiting confirmation · **Data:** `data/question_bank.json` (8,907 surveys) and `data/sudden_death_bank.json` (456 single-answer surveys), done and verified
 
 ## 1. Requirements restatement
 
@@ -19,7 +19,7 @@ Build a playable Family Feud game that follows the real show's rules, round orde
 | 2 | Round 2 | Single (×1) | 5–8 answers |
 | 3 | Round 3 | Double (×2) | 4–6 answers |
 | 4 | Round 4 | Triple (×3) | 4–5 answers |
-| last | Sudden Death | Triple (×3) | 4–8 answers, only the #1 answer counts |
+| last | Sudden Death | Triple (×3) | Single-answer question from the separate Sudden Death bank |
 
 - A family that has 300 or more at the end of any round wins. If neither family is at 300 after the triple round, Sudden Death decides the game. The triple round is not repeated.
 - This table is the **Default** preset. Every value in it can be changed; see "Game rules and presets" below.
@@ -142,7 +142,7 @@ The project is empty apart from the scraper and the data, so **there are no exis
 - **Steps:**
   1. Write `bank.ts`, which loads the bank and picks questions for each round by size.
   2. Write `answers.ts`, which builds the list of accepted spellings for each answer.
-  3. Sudden Death and Fast Money draw from any survey, scored by its board points. An answer that isn't on the board scores 0.
+  3. Sudden Death draws from the separate single-answer bank (`feud{season}_1` pages, 456 surveys). Fast Money draws from the main bank, scored by its board points; an answer that isn't on the board scores 0.
 - **Validate:** unit tests that check:
   - no flagged surveys are ever picked;
   - every pick has the right size for its round;

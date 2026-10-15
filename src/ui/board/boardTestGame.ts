@@ -48,7 +48,9 @@ export function run(state: GameState, ...actions: GameAction[]): GameState {
 
 export function start(state: GameState, answerCount = 5, texts?: string[]): GameState {
   if (!nextRound(state)) throw new Error("no next round");
-  return run(state, { type: "startRound", survey: survey(answerCount, texts) });
+  // Sudden Death always uses a single-answer survey, as in the real Sudden Death bank.
+  const size = nextRound(state)!.kind === "suddenDeath" ? 1 : answerCount;
+  return run(state, { type: "startRound", survey: survey(size, texts) });
 }
 
 /** Smith takes control with the #1 answer and chooses to play. */

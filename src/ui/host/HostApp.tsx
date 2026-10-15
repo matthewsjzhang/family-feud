@@ -18,7 +18,9 @@ export function HostApp() {
       <header className="host-app__bar">
         <span className="host-app__title">Family Feud · Host</span>
         <span className="host-app__bank">
-          {host.bankReady ? `${host.bankSize.toLocaleString()} surveys` : "Loading surveys…"}
+          {host.bankReady
+            ? `${host.bankSize.toLocaleString()} surveys · ${host.suddenDeathBankSize.toLocaleString()} Sudden Death`
+            : "Loading surveys…"}
         </span>
         <button type="button" className="host-app__board-button" onClick={host.openBoard}>
           Open game board

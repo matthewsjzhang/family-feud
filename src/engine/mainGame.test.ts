@@ -330,14 +330,22 @@ describe("Sudden Death", () => {
   function atSuddenDeath() {
     let s = newGame();
     for (const team of [0, 1, 0, 1] as Team[]) s = winSmallRound(s, team);
-    return run(s, { type: "startRound", survey: survey(4, "sd") });
+    return run(s, { type: "startRound", survey: survey(1, "sd") });
   }
+
+  it("uses a single-answer survey from the Sudden Death bank", () => {
+    let s = newGame();
+    for (const team of [0, 1, 0, 1] as Team[]) s = winSmallRound(s, team);
+    expect(nextRound(s)).toMatchObject({ minAnswers: 1, maxAnswers: 1 });
+    expect(() => run(s, { type: "startRound", survey: survey(4, "main") })).toThrow(/1-1 answers/);
+    expect(atSuddenDeath().round!.slots).toEqual(["hidden"]);
+  });
 
   it("is a face-off where only the #1 answer counts, worth triple, and it ends the game", () => {
     const before = atSuddenDeath();
     const scores = before.families.map((f) => f.score);
-    let s = run(before, { type: "buzz", team: 0 }, { type: "faceOffAnswer", team: 0, answer: 1 });
-    expect(s.round!.slots[1]).toBe("hidden");
+    let s = run(before, { type: "buzz", team: 0 }, { type: "faceOffAnswer", team: 0, answer: null });
+    expect(s.round!.slots[0]).toBe("hidden");
     expect(s.round!.faceOff.turn).toBe(1);
     s = run(s, { type: "faceOffAnswer", team: 1, answer: 0 });
     expect(s.winner).toBe(1);
@@ -351,7 +359,7 @@ describe("Sudden Death", () => {
       atSuddenDeath(),
       { type: "buzz", team: 1 },
       { type: "faceOffAnswer", team: 1, answer: null },
-      { type: "faceOffAnswer", team: 0, answer: 3 },
+      { type: "faceOffAnswer", team: 0, answer: null },
     );
     expect(s.winner).toBeNull();
     expect(s.round!.phase).toBe("faceOff");

@@ -19,7 +19,7 @@ export interface RulesDraft {
   winType: "target" | "highestScore";
   target: string;
   repeatLastRound: boolean;
-  suddenDeath: { enabled: boolean; multiplier: string; minAnswers: string; maxAnswers: string };
+  suddenDeath: { enabled: boolean; multiplier: string };
   fastMoney: {
     enabled: boolean;
     target: string;
@@ -60,8 +60,6 @@ export function toDraft(rules: GameRules): RulesDraft {
     suddenDeath: {
       enabled: sd.enabled,
       multiplier: String(sd.multiplier),
-      minAnswers: String(sd.minAnswers),
-      maxAnswers: String(sd.maxAnswers),
     },
     fastMoney: {
       enabled: fm.enabled,
@@ -98,8 +96,6 @@ export function toRules(draft: RulesDraft, id: string): GameRules {
     suddenDeath: {
       enabled: sd.enabled,
       multiplier: num(sd.multiplier),
-      minAnswers: num(sd.minAnswers),
-      maxAnswers: num(sd.maxAnswers),
     },
     fastMoney: {
       enabled: fm.enabled,

@@ -249,7 +249,7 @@ function BetweenRounds({ host, state, round }: WithRound<RoundState | null>) {
 
       {state.winner !== null ? (
         <div className={`hg-gameover ${teamClass(state.winner)}`} role="status">
-          <h2 className="hg-gameover__title">{state.families[state.winner].name} win the game!</h2>
+          <h2 className="hg-gameover__title">The {state.families[state.winner].name} family wins the game!</h2>
           <p>
             Final score: {state.families[0].name} {state.families[0].score} · {state.families[1].name}{" "}
             {state.families[1].score}

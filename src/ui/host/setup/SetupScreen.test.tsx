@@ -90,7 +90,7 @@ describe("SetupScreen", () => {
       Rounds: "1. Single ×1 · 2. Single ×1 · 3. Double ×2 · 4. Triple ×3",
       "Last round": "The last round doesn't repeat",
       Win: "First to 300",
-      "Sudden Death": "On, ×3 (4-8 answers)",
+      "Sudden Death": "On, ×3 (single-answer questions)",
       "Fast Money": "200 points wins $20,000, otherwise $5 per point; timers 20 s / 25 s",
       Champions: "Retire after 5 wins",
     });
@@ -100,7 +100,7 @@ describe("SetupScreen", () => {
       Rounds: "1. Single ×1 · 2. Single ×1 · 3. Single ×1 · 4. Single ×1",
       "Last round": "The last round repeats until someone reaches the target",
       Win: "First to 300",
-      "Sudden Death": "On, ×1 (4-8 answers)",
+      "Sudden Death": "On, ×1 (single-answer questions)",
     });
 
     await user.selectOptions(screen.getByLabelText("Rules preset"), "Fixed rounds");

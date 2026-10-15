@@ -21,7 +21,7 @@ export function summarizePreset(rules: GameRules): PresetSummary {
       ? "The last round repeats until someone reaches the target"
       : "The last round doesn't repeat",
     win: rules.win.type === "target" ? `First to ${rules.win.target}` : `Highest score after round ${rules.rounds.length}`,
-    suddenDeath: sd.enabled ? `On, ×${sd.multiplier} (${sd.minAnswers}-${sd.maxAnswers} answers)` : "Off",
+    suddenDeath: sd.enabled ? `On, ×${sd.multiplier} (single-answer questions)` : "Off",
     fastMoney: fm.enabled
       ? `${fm.target} points wins ${money(fm.grandPrize)}, otherwise ${money(fm.perPoint)} per point; timers ${fm.timers[0]} s / ${fm.timers[1]} s`
       : "Off",

@@ -52,6 +52,12 @@ export async function loadBank(): Promise<Survey[]> {
   return prepareBank(mod.default as Survey[]);
 }
 
+/** Single-answer surveys used only for Sudden Death (data/sudden_death_bank.json). */
+export async function loadSuddenDeathBank(): Promise<Survey[]> {
+  const mod = await import("../../data/sudden_death_bank.json");
+  return prepareBank(mod.default as Survey[]);
+}
+
 export function memoryStore(initial: string[] = []): UsedStore {
   let ids = [...initial];
   return {

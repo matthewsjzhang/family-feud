@@ -106,8 +106,9 @@ export function nextRound(state: GameState): UpcomingRound | null {
     return { kind: "round", number: roundsPlayed + 1, ...rule };
   }
   if (rules.suddenDeath.enabled) {
-    const { multiplier, minAnswers, maxAnswers } = rules.suddenDeath;
-    return { kind: "suddenDeath", number: roundsPlayed + 1, name: "Sudden Death", multiplier, minAnswers, maxAnswers };
+    // Sudden Death uses single-answer surveys from its own bank.
+    const { multiplier } = rules.suddenDeath;
+    return { kind: "suddenDeath", number: roundsPlayed + 1, name: "Sudden Death", multiplier, minAnswers: 1, maxAnswers: 1 };
   }
   return null;
 }

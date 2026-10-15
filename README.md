@@ -4,10 +4,13 @@ A browser version of Family Feud that follows the rules of the modern TV show (s
 
 ## Question bank
 
-`data/question_bank.json` holds 8,907 real surveys from seasons 16–26, each with 4–8 answers. They were scraped from [mstiescott.neocities.org](https://mstiescott.neocities.org) (pages `feud{season}_{answers}`).
+Two banks, both scraped from [mstiescott.neocities.org](https://mstiescott.neocities.org), seasons 16–26:
 
-- `npm run bank:scrape` rebuilds the bank.
-- `npm run bank:verify` spot-checks it against the live site.
+- `data/question_bank.json`: 8,907 surveys with 4–8 answers (pages `feud{season}_{4..8}`), used for the main rounds and Fast Money.
+- `data/sudden_death_bank.json`: 456 single-answer surveys (pages `feud{season}_1`), used only for Sudden Death. The site shows their totals tripled, since Sudden Death is played for triple points.
+
+- `npm run bank:scrape` rebuilds both banks.
+- `npm run bank:verify` spot-checks the main bank against the live site; add `-- --bank data/sudden_death_bank.json` for the Sudden Death bank.
 - Surveys with typos on the source site carry `reviewFlags` and are never played.
 
 ## Development

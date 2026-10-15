@@ -2,7 +2,14 @@
 // picks questions, suggests answer matches, and keeps the board window in sync.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPicker, loadBank, localStorageStore, type QuestionPicker, type Survey } from "../data/bank";
+import {
+  createPicker,
+  loadBank,
+  loadSuddenDeathBank,
+  localStorageStore,
+  type QuestionPicker,
+  type Survey,
+} from "../data/bank";
 import {
   canApply,
   createGame,
@@ -31,8 +38,10 @@ export interface GameSetup {
 export interface GameHost {
   /** False until the question bank has loaded. */
   bankReady: boolean;
-  /** Playable surveys in the bank. */
+  /** Playable surveys in the main bank. */
   bankSize: number;
+  /** Playable single-answer surveys in the separate Sudden Death bank. */
+  suddenDeathBankSize: number;
   /** Null while on the setup screen. */
   state: GameState | null;
   /** The round "Next round" would start, if any. */
@@ -60,11 +69,14 @@ export interface GameHost {
 const reduce = undoableReducer(gameReducer);
 
 export function useGameHost(channelFactory: () => SyncChannel = createSyncChannel): GameHost {
-  const [bank, setBank] = useState<Survey[] | null>(null);
+  const [banks, setBanks] = useState<{ main: Survey[]; suddenDeath: Survey[] } | null>(null);
   const [history, setHistory] = useState<History<GameState> | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const historyRef = useRef(history);
-  const pickerRef = useRef<QuestionPicker | null>(null);
+  const pickersRef = useRef<{ main: QuestionPicker; suddenDeath: QuestionPicker } | null>(null);
+  /** Main rounds and Sudden Death draw from separate banks. */
+  const pickerFor = (kind: "round" | "suddenDeath") =>
+    pickersRef.current && (kind === "suddenDeath" ? pickersRef.current.suddenDeath : pickersRef.current.main);
   const channelRef = useRef<SyncChannel | null>(null);
 
   const broadcast = useCallback((next: History<GameState> | null, events: BoardEvent[]) => {
@@ -83,10 +95,13 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
 
   useEffect(() => {
     let cancelled = false;
-    loadBank().then((loaded) => {
+    Promise.all([loadBank(), loadSuddenDeathBank()]).then(([main, suddenDeath]) => {
       if (cancelled) return;
-      pickerRef.current = createPicker(loaded, { store: localStorageStore() });
-      setBank(loaded);
+      pickersRef.current = {
+        main: createPicker(main, { store: localStorageStore() }),
+        suddenDeath: createPicker(suddenDeath, { store: localStorageStore("feud.usedSuddenDeath") }),
+      };
+      setBanks({ main, suddenDeath });
     });
     return () => {
       cancelled = true;
@@ -131,8 +146,9 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
 
   return useMemo<GameHost>(
     () => ({
-      bankReady: bank !== null,
-      bankSize: bank?.length ?? 0,
+      bankReady: banks !== null,
+      bankSize: banks?.main.length ?? 0,
+      suddenDeathBankSize: banks?.suddenDeath.length ?? 0,
       state,
       upcoming,
       canUndo: !!history?.past.length,
@@ -149,9 +165,10 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
       can: (action) => !!state && canApply(state, action),
       startNextRound() {
         const next = state && nextRound(state);
-        if (!next || !pickerRef.current) return;
+        const picker = next && pickerFor(next.kind);
+        if (!next || !picker) return;
         try {
-          const survey = pickerRef.current.pick({ min: next.minAnswers, max: next.maxAnswers });
+          const survey = picker.pick({ min: next.minAnswers, max: next.maxAnswers });
           apply({ type: "startRound", survey });
         } catch (error) {
           fail(error);
@@ -160,14 +177,15 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
       swapQuestion() {
         const current = historyRef.current;
         const r = current?.present.round;
-        if (!current || !r || !canSwapQuestion || !pickerRef.current) return;
+        const picker = r && pickerFor(r.kind);
+        if (!current || !r || !canSwapQuestion || !picker) return;
         // Rewind to just before this round started, then start it with a different survey.
         let at = current.past.length;
         while (at > 0 && current.past[at - 1]!.round?.survey.id === r.survey.id) at -= 1;
         if (at === 0) return;
         const before: History<GameState> = { past: current.past.slice(0, at - 1), present: current.past[at - 1]! };
         try {
-          const survey = pickerRef.current.pick({
+          const survey = picker.pick({
             min: r.survey.answerCount,
             max: r.survey.answerCount,
             exclude: [r.survey.id],
@@ -192,6 +210,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         window.open(`${window.location.pathname}#/board`, "feud-board", "popup,width=1280,height=720");
       },
     }),
-    [bank, state, upcoming, history, lastError, commit, apply, round, canSwapQuestion],
+    // pickerFor only reads a ref, so it doesn't need to be a dependency.
+    [banks, state, upcoming, history, lastError, commit, apply, round, canSwapQuestion],
   );
 }

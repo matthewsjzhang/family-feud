@@ -13,11 +13,10 @@ export interface RoundRule {
   maxAnswers: number;
 }
 
+/** Sudden Death questions come from their own single-answer bank (data/sudden_death_bank.json). */
 export interface SuddenDeathRule {
   enabled: boolean;
   multiplier: number;
-  minAnswers: number;
-  maxAnswers: number;
 }
 
 export type WinCondition =
@@ -71,7 +70,7 @@ export const DEFAULT_RULES: GameRules = deepFreeze({
   ],
   repeatLastRound: false,
   win: { type: "target", target: 300 },
-  suddenDeath: { enabled: true, multiplier: 3, minAnswers: 4, maxAnswers: 8 },
+  suddenDeath: { enabled: true, multiplier: 3 },
   fastMoney: { ...SHOW_FAST_MONEY },
   championLimit: 5,
 });
@@ -83,7 +82,7 @@ export const SINGLE_POINTS_RULES: GameRules = deepFreeze({
   rounds: DEFAULT_RULES.rounds.map((r) => ({ ...r, name: "Single", multiplier: 1 })),
   repeatLastRound: true,
   win: { type: "target", target: 300 },
-  suddenDeath: { enabled: true, multiplier: 1, minAnswers: 4, maxAnswers: 8 },
+  suddenDeath: { enabled: true, multiplier: 1 },
   fastMoney: { ...SHOW_FAST_MONEY },
   championLimit: 5,
 });
@@ -95,7 +94,7 @@ export const FIXED_ROUNDS_RULES: GameRules = deepFreeze({
   rounds: Array.from({ length: 5 }, () => ({ name: "Single", multiplier: 1, minAnswers: 4, maxAnswers: 8 })),
   repeatLastRound: false,
   win: { type: "highestScore" },
-  suddenDeath: { enabled: true, multiplier: 1, minAnswers: 4, maxAnswers: 8 },
+  suddenDeath: { enabled: true, multiplier: 1 },
   fastMoney: { ...SHOW_FAST_MONEY },
   championLimit: 5,
 });
@@ -128,7 +127,6 @@ export function validateRules(rules: GameRules): string[] {
   const sd = rules.suddenDeath;
   if (sd.enabled) {
     if (!isWhole(sd.multiplier, 1)) errors.push("Sudden Death: the multiplier must be a whole number of at least 1.");
-    checkSize("Sudden Death", sd.minAnswers, sd.maxAnswers, errors);
   }
 
   if (rules.win.type === "target") {

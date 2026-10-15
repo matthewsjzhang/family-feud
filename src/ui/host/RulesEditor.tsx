@@ -3,7 +3,7 @@
 
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { newPresetId, type PresetStore } from "../../engine/presets";
-import { BANK_MAX_ANSWERS, BANK_MIN_ANSWERS, validateRules, type GameRules } from "../../engine/rules";
+import { validateRules, type GameRules } from "../../engine/rules";
 import { NumberField } from "./setup/NumberField";
 import { RoundsEditor } from "./setup/RoundsEditor";
 import { copyName, toDraft, toRules, type RulesDraft } from "./setup/rulesDraft";
@@ -288,23 +288,8 @@ export function RulesEditor({ store, presetId, onSaved, onDeleted, onClose }: Ru
               disabled={!sd.enabled}
               onChange={(multiplier) => edit((d) => ({ ...d, suddenDeath: { ...d.suddenDeath, multiplier } }))}
             />
-            <NumberField
-              label="Min answers"
-              min={BANK_MIN_ANSWERS}
-              max={BANK_MAX_ANSWERS}
-              value={sd.minAnswers}
-              disabled={!sd.enabled}
-              onChange={(minAnswers) => edit((d) => ({ ...d, suddenDeath: { ...d.suddenDeath, minAnswers } }))}
-            />
-            <NumberField
-              label="Max answers"
-              min={BANK_MIN_ANSWERS}
-              max={BANK_MAX_ANSWERS}
-              value={sd.maxAnswers}
-              disabled={!sd.enabled}
-              onChange={(maxAnswers) => edit((d) => ({ ...d, suddenDeath: { ...d.suddenDeath, maxAnswers } }))}
-            />
           </div>
+          <p className="setup-hint">Uses single-answer questions from the separate Sudden Death bank.</p>
         </fieldset>
 
         <fieldset className="rules-editor__group">

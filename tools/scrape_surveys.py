@@ -4,8 +4,12 @@ Pages are https://mstiescott.neocities.org/feud{season}_{answers}. Each page
 lists many surveys; each survey is a question, a score box (points total) and
 a two-column board whose left column holds answers 1-4 and right column 5-8.
 
+Two banks are built: the main bank from the 4-8 answer pages, and a separate
+Sudden Death bank from the single-answer pages (feud{season}_1).
+
 Usage:
     python -I tools/scrape_surveys.py [--raw DIR] [--out data/question_bank.json]
+        [--sudden-death-out data/sudden_death_bank.json]
 
 With --raw, pages are read from DIR/feud{s}_{n}.html instead of downloaded.
 """
@@ -20,7 +24,8 @@ from pathlib import Path
 
 BASE_URL = "https://mstiescott.neocities.org/feud{season}_{answers}"
 SEASONS = range(16, 27)  # 16..26 inclusive
-ANSWER_COUNTS = range(4, 9)  # 4..8 inclusive
+ANSWER_COUNTS = range(4, 9)  # 4..8 inclusive: main game surveys
+SUDDEN_DEATH_COUNTS = range(1, 2)  # feud{season}_1: single-answer Sudden Death surveys
 
 # Each survey is three tables in a row: question (570 wide), score box (172),
 # board (542). Markup inside them differs between seasons, so anchor on these.
@@ -117,25 +122,34 @@ def parse_page(page: str, season: int, answers: int) -> tuple[list[dict], list[s
     return surveys, problems
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--raw", type=Path, help="directory of pre-downloaded pages")
-    ap.add_argument("--out", type=Path, default=Path("data/question_bank.json"))
-    args = ap.parse_args()
-
+def build(answer_counts: range, raw: Path | None, out: Path) -> None:
     bank, problems = [], []
     for season in SEASONS:
-        for answers in ANSWER_COUNTS:
-            surveys, page_problems = parse_page(fetch(season, answers, args.raw), season, answers)
+        for answers in answer_counts:
+            surveys, page_problems = parse_page(fetch(season, answers, raw), season, answers)
             print(f"feud{season}_{answers}: {len(surveys)} surveys")
             bank.extend(surveys)
             problems.extend(page_problems)
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(bank, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(f"\n{len(bank)} surveys written to {args.out}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(bank, indent=1, ensure_ascii=False), encoding="utf-8")
+    print(f"\n{len(bank)} surveys written to {out}")
     if problems:
         print(f"{len(problems)} problems:", *problems, sep="\n  ")
+    print()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--raw", type=Path, help="directory of pre-downloaded pages")
+    ap.add_argument("--out", type=Path, default=Path("data/question_bank.json"))
+    ap.add_argument("--sudden-death-out", type=Path, default=Path("data/sudden_death_bank.json"))
+    args = ap.parse_args()
+
+    build(ANSWER_COUNTS, args.raw, args.out)
+    # Single-answer surveys, used only for Sudden Death. Their score box shows
+    # the answer's points tripled, as Sudden Death is played for triple points.
+    build(SUDDEN_DEATH_COUNTS, args.raw, args.sudden_death_out)
     return 0
 
 
