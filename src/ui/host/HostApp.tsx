@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useGameHost } from "../../app/useGameHost";
+import { HostFastMoney } from "./fastMoney/HostFastMoney";
 import { HostGame } from "./HostGame";
 import { SetupScreen } from "./SetupScreen";
 import "./hostApp.css";
@@ -40,6 +41,8 @@ export function HostApp() {
       <main className="host-app__main">
         {!host.bankReady ? (
           <p className="host-app__loading">Loading the question bank…</p>
+        ) : host.fastMoney ? (
+          <HostFastMoney host={host} />
         ) : host.state ? (
           <HostGame host={host} />
         ) : (

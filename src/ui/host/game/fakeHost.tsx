@@ -142,6 +142,14 @@ export function FakeHostGame({ rules = DEFAULT_RULES, surveys = [BEACH, PETS, BR
       return matchAnswer(round.survey.answers, guess, { exclude: revealed });
     },
     openBoard: () => {},
+    // Fast Money isn't exercised by these main-game tests.
+    fastMoney: null,
+    canStartFastMoney: false,
+    startFastMoney: () => {},
+    applyFastMoney: () => {},
+    canFastMoney: () => false,
+    suggestFastMoney: () => null,
+    endFastMoney: () => {},
   };
 
   return <HostGame host={host} />;

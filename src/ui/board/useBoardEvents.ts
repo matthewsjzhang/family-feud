@@ -39,6 +39,9 @@ export function applyEvent(t: BoardTransients, event: BoardEvent, key: number): 
       return { ...t, gain: { key, team: event.team, points: event.points } };
     case "gameWon":
       return { ...t, celebrate: key };
+    default:
+      // Fast Money events are handled by the Fast Money screen.
+      return t;
   }
 }
 

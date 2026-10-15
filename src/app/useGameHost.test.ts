@@ -92,6 +92,96 @@ describe("useGameHost", () => {
     expect(swapped.survey.source).toMatch(/feud\d+_1$/);
   });
 
+  describe("Fast Money", () => {
+    /** A game where the first round decides it (target 1), won by Smith. */
+    async function wonGame() {
+      const fake = await ready();
+      const { hook } = fake;
+      const quick = { ...structuredClone(DEFAULT_RULES), id: "quick", builtIn: false, win: { type: "target" as const, target: 1 } };
+      act(() => hook.result.current.newGame({ ...setup, rules: quick }));
+      act(() => hook.result.current.startNextRound());
+      for (const action of [
+        { type: "buzz", team: 0 },
+        { type: "faceOffAnswer", team: 0, answer: 0 },
+        { type: "playOrPass", play: true },
+        { type: "answer", answer: null },
+        { type: "answer", answer: null },
+        { type: "answer", answer: null },
+        { type: "steal", answer: null },
+      ] as const) {
+        act(() => hook.result.current.apply(action));
+      }
+      expect(hook.result.current.state!.winner).toBe(0);
+      return fake;
+    }
+
+    it("is only available once the game is won", async () => {
+      const { hook } = await ready();
+      act(() => hook.result.current.newGame(setup));
+      expect(hook.result.current.canStartFastMoney).toBe(false);
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      expect(hook.result.current.fastMoney).toBeNull();
+    });
+
+    it("starts with two players of the winning family and five real surveys, and tells the board", async () => {
+      const { hook, sent } = await wonGame();
+      expect(hook.result.current.canStartFastMoney).toBe(true);
+      act(() => hook.result.current.startFastMoney([0, 0]));
+      expect(hook.result.current.lastError).toMatch(/two different players/i);
+
+      act(() => hook.result.current.startFastMoney([1, 3]));
+      const fm = hook.result.current.fastMoney!;
+      expect(fm.players.map((p) => p.name)).toEqual(["S2", "S4"]);
+      expect(fm.surveys).toHaveLength(5);
+      expect(new Set(fm.surveys.map((s) => s.id)).size).toBe(5);
+      expect(fm.surveys.every((s) => s.answerCount >= 4 && /feud\d+_[4-8]$/.test(s.source))).toBe(true);
+      expect(hook.result.current.canStartFastMoney).toBe(false);
+
+      const last = sent.at(-1) as { snapshot: { fastMoney: unknown }; events: unknown[] };
+      expect(last.events).toEqual([{ type: "fmStart" }]);
+      expect(last.snapshot.fastMoney).toMatchObject({ family: "Smith", players: ["S2", "S4"] });
+      // The board never gets the Fast Money questions or survey answers.
+      expect(JSON.stringify(last)).not.toContain(fm.surveys[0]!.question);
+    });
+
+    it("runs the clock from the host window and undoes Fast Money steps separately", async () => {
+      const { hook } = await wonGame();
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      act(() => hook.result.current.applyFastMoney({ type: "startClock" }));
+      await waitFor(() => expect(hook.result.current.fastMoney!.timeLeftMs).toBeLessThan(19_800), { timeout: 3000 });
+
+      act(() => hook.result.current.applyFastMoney({ type: "giveAnswer", text: "cat" }));
+      expect(hook.result.current.fastMoney!.players[0].answers[0]!.text).toBe("cat");
+      expect(hook.result.current.canUndo).toBe(true);
+      act(() => hook.result.current.undo());
+      expect(hook.result.current.fastMoney!.players[0].answers[0]!.text).toBeNull();
+      // Clock ticks are not undo steps: one more undo goes back to before the clock started.
+      act(() => hook.result.current.undo());
+      expect(hook.result.current.fastMoney!.phase).toBe("ready");
+      expect(hook.result.current.state!.winner).toBe(0); // the main game is untouched
+    });
+
+    it("suggests matches against each Fast Money survey and checks actions", async () => {
+      const { hook } = await wonGame();
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      const fm = hook.result.current.fastMoney!;
+      const top = fm.surveys[2]!.answers[0]!.text.split("/")[0]!;
+      expect(hook.result.current.suggestFastMoney(2, top)!.index).toBe(0);
+      expect(hook.result.current.canFastMoney({ type: "giveAnswer", text: "x" })).toBe(false); // clock not started
+      expect(hook.result.current.canFastMoney({ type: "startClock" })).toBe(true);
+    });
+
+    it("leaves Fast Money, and a new game clears it", async () => {
+      const { hook } = await wonGame();
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      act(() => hook.result.current.endFastMoney());
+      expect(hook.result.current.fastMoney).toBeNull();
+      act(() => hook.result.current.startFastMoney([0, 1]));
+      act(() => hook.result.current.newGame(setup));
+      expect(hook.result.current.fastMoney).toBeNull();
+    });
+  });
+
   it("applies actions, reports refused ones, and undoes", async () => {
     const { hook } = await ready();
     act(() => hook.result.current.newGame(setup));

@@ -6,6 +6,7 @@ import type { BoardEvent, BoardSnapshot, RoundView } from "../../app/boardSnapsh
 import { otherTeam, type Team } from "../../engine/mainGame";
 import { AnswerBoard } from "./AnswerBoard";
 import { FamilyPanel, type FamilyStatus } from "./FamilyPanel";
+import { FastMoneyBoard } from "./fastMoney/FastMoneyBoard";
 import { IdleScreen, StrikeOverlay, WinnerOverlay } from "./Overlays";
 import { useBoardEvents } from "./useBoardEvents";
 import "./board.css";
@@ -95,6 +96,10 @@ export function GameBoard({ snapshot, eventBatch }: GameBoardProps) {
         </div>
       </main>
     );
+  }
+
+  if (snapshot.fastMoney) {
+    return <FastMoneyBoard view={snapshot.fastMoney} eventBatch={eventBatch} />;
   }
 
   const { families, round, winner } = snapshot;

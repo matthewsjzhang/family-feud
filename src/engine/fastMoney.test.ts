@@ -128,6 +128,20 @@ describe("judging", () => {
     expect(fastMoneyTotal(s)).toBe(30);
   });
 
+  it("can put an answer on the board before its points, like \"survey says\"", () => {
+    let s = run(judging(), { type: "showAnswer", question: 2 });
+    expect(s.players[0].answers[2]).toMatchObject({ shown: true, judged: false, points: 0 });
+    s = run(s, judge(2, 0));
+    expect(s.players[0].answers[2]).toMatchObject({ shown: true, judged: true, points: 40 });
+    expect(() => run(newRound(), { type: "showAnswer", question: 0 })).toThrow();
+  });
+
+  it("shows and scores blank answers automatically when time runs out", () => {
+    const s = run(newRound(), { type: "startClock" }, say("cat"), { type: "tick", ms: 20000 });
+    expect(s.players[0].answers[1]).toMatchObject({ text: null, shown: true, judged: true, points: 0 });
+    expect(() => run(s, { type: "showAnswer", question: 1 })).toThrow(/no answer/i);
+  });
+
   it("lets the host change a judgement before moving on", () => {
     const s = run(judging(), judge(0, 1), judge(0, 0));
     expect(fastMoneyTotal(s)).toBe(40);

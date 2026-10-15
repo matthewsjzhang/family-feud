@@ -18,6 +18,8 @@ export interface FastMoneyAnswer {
   /** Board answer index the host matched it to; null if not on the board. */
   answer: number | null;
   points: number;
+  /** On the board: the answer text is shown before its points ("survey says"). */
+  shown: boolean;
   judged: boolean;
 }
 
@@ -55,10 +57,12 @@ export type FastMoneyAction =
   | { type: "giveAnswer"; text: string; duplicate?: boolean }
   | { type: "pass" }
   | { type: "endTurn" }
+  /** Put the player's answer up on the board before judging it. */
+  | { type: "showAnswer"; question: number }
   | { type: "judge"; question: number; answer: number | null }
   | { type: "startPlayer2" };
 
-const blankAnswer = (): FastMoneyAnswer => ({ text: null, answer: null, points: 0, judged: false });
+const blankAnswer = (): FastMoneyAnswer => ({ text: null, answer: null, points: 0, shown: false, judged: false });
 
 export function createFastMoney(rule: FastMoneyRule, surveys: Survey[], playerNames: string[]): FastMoneyState {
   if (surveys.length !== FAST_MONEY_QUESTIONS) throw new IllegalActionError("Fast Money needs five surveys.");
@@ -135,6 +139,14 @@ export function fastMoneyReducer(state: FastMoneyState, action: FastMoneyAction)
       requirePhase(s, "answering");
       endTurn(s);
       break;
+    case "showAnswer": {
+      requirePhase(s, "judging");
+      const slot = s.players[s.turn].answers[action.question];
+      if (!slot) throw new IllegalActionError(`There is no question ${action.question + 1}.`);
+      if (slot.text === null) throw new IllegalActionError(`There is no answer to question ${action.question + 1} to show.`);
+      slot.shown = true;
+      break;
+    }
     case "judge":
       judge(s, action.question, action.answer);
       break;
@@ -171,7 +183,7 @@ function endTurn(s: FastMoneyState) {
   s.phase = "judging";
   s.clockRunning = false;
   for (const a of s.players[s.turn].answers) {
-    if (a.text === null) Object.assign(a, blankAnswer(), { judged: true });
+    if (a.text === null) Object.assign(a, blankAnswer(), { shown: true, judged: true });
   }
   finishJudgingIfDone(s);
 }
@@ -187,6 +199,7 @@ function judge(s: FastMoneyState, question: number, answer: number | null) {
   }
   slot.answer = answer;
   slot.points = answer === null ? 0 : board[answer]!.points;
+  slot.shown = true;
   slot.judged = true;
   finishJudgingIfDone(s);
 }
