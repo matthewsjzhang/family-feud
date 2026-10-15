@@ -2,6 +2,7 @@
 // Player 1 answers five questions against the clock, the host judges each
 // answer against the survey, then player 2 does the same with player 1's
 // answers covered. Repeating player 1's answer gets the double buzzer.
+// Reaching the target wins at once, as on the show; the rest can still be revealed.
 
 import type { Survey } from "../data/bank";
 import { sameAnswer } from "./match";
@@ -141,9 +142,9 @@ export function fastMoneyReducer(state: FastMoneyState, action: FastMoneyAction)
       endTurn(s);
       break;
     case "showAnswer": {
-      requirePhase(s, "judging");
       const slot = s.players[s.turn].answers[action.question];
       if (!slot) throw new IllegalActionError(`There is no question ${action.question + 1}.`);
+      requireJudging(s, slot);
       if (slot.text === null) throw new IllegalActionError(`There is no answer to question ${action.question + 1} to show.`);
       slot.shown = true;
       break;
@@ -189,10 +190,17 @@ function endTurn(s: FastMoneyState) {
   finishJudgingIfDone(s);
 }
 
+/** Judging, or revealing what's left after an early win (those answers can't change the result). */
+function requireJudging(s: FastMoneyState, slot: FastMoneyAnswer) {
+  if (s.phase === "judging") return;
+  if (s.phase === "done" && s.outcome?.won && !slot.judged) return;
+  throw new IllegalActionError("Not allowed now (needs the judging step).");
+}
+
 function judge(s: FastMoneyState, question: number, answer: number | null) {
-  requirePhase(s, "judging");
   const slot = s.players[s.turn].answers[question];
   if (!slot) throw new IllegalActionError(`There is no question ${question + 1}.`);
+  requireJudging(s, slot);
   if (slot.text === null) throw new IllegalActionError(`There is no answer to question ${question + 1} to judge.`);
   const board = s.surveys[question]!.answers;
   if (answer !== null && (!Number.isInteger(answer) || answer < 0 || answer >= board.length)) {
@@ -206,12 +214,20 @@ function judge(s: FastMoneyState, question: number, answer: number | null) {
 }
 
 function finishJudgingIfDone(s: FastMoneyState) {
-  if (!s.players[s.turn].answers.every((a) => a.judged)) return;
   const total = fastMoneyTotal(s);
+  if (s.phase === "done") {
+    // Revealing the rest after an early win: the total grows, the prize stays.
+    if (s.outcome) s.outcome.total = total;
+    return;
+  }
   if (total >= s.rule.target) {
+    // The target is reached the moment the points go up, even with answers still to judge.
     s.phase = "done";
     s.outcome = { won: true, total, payout: s.rule.grandPrize };
-  } else if (s.turn === 0) {
+    return;
+  }
+  if (!s.players[s.turn].answers.every((a) => a.judged)) return;
+  if (s.turn === 0) {
     s.phase = "handoff";
   } else {
     s.phase = "done";

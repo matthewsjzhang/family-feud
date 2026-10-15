@@ -494,3 +494,136 @@ describe("useGameHost", () => {
     expect(sent.at(-1)).toEqual({ type: "snapshot", snapshot: null, events: [] });
   });
 });
+
+describe("fixes from the review", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("doesn't offer Fast Money a second time once it has been played to the end", async () => {
+    const { hook } = await ready();
+    const quick = { ...structuredClone(DEFAULT_RULES), id: "quick", builtIn: false, win: { type: "target" as const, target: 1 } };
+    act(() => hook.result.current.newGame({ ...setup, rules: quick }));
+    act(() => hook.result.current.startNextRound());
+    for (const action of [
+      { type: "buzz", team: 0 },
+      { type: "faceOffAnswer", team: 0, answer: 0 },
+      { type: "playOrPass", play: true },
+      { type: "answer", answer: null },
+      { type: "answer", answer: null },
+      { type: "answer", answer: null },
+      { type: "steal", answer: null },
+    ] as const) {
+      act(() => hook.result.current.apply(action));
+    }
+    act(() => hook.result.current.startFastMoney([0, 1]));
+    // Both players run out the clock without answering: Fast Money is over.
+    for (const action of [{ type: "startClock" }, { type: "endTurn" }, { type: "startPlayer2" }, { type: "startClock" }, { type: "endTurn" }] as const) {
+      act(() => hook.result.current.applyFastMoney(action));
+    }
+    expect(hook.result.current.fastMoney!.phase).toBe("done");
+
+    act(() => hook.result.current.endFastMoney()); // "Back to the game"
+    expect(hook.result.current.canStartFastMoney).toBe(false);
+  });
+
+  it("swaps a hand-picked question that is smaller than the round normally allows", async () => {
+    const { hook } = await ready();
+    const fourAnswers = hook.result.current.banks!.main.find((s) => s.answerCount === 4)!;
+    act(() => hook.result.current.newGame(setup)); // round 1 normally needs 6-8 answers
+    act(() => hook.result.current.queueSurvey(fourAnswers.id));
+    act(() => hook.result.current.startNextRound());
+    expect(hook.result.current.state!.round!.survey.id).toBe(fourAnswers.id);
+    expect(hook.result.current.canSwapQuestion).toBe(true);
+
+    act(() => hook.result.current.swapQuestion());
+    expect(hook.result.current.lastError).toBeNull();
+    expect(hook.result.current.state!.round!.survey.id).not.toBe(fourAnswers.id);
+  });
+
+  it("swaps a custom question from a question set", async () => {
+    const { hook } = await ready();
+    let custom = null as ReturnType<typeof hook.result.current.addCustomQuestion>;
+    act(() => {
+      custom = hook.result.current.addCustomQuestion({
+        question: "Name something in our garage.",
+        answers: [{ text: "Car", points: 50 }, { text: "Bikes", points: 30 }, { text: "Junk", points: 20 }],
+        suddenDeath: false,
+      });
+    });
+    act(() => hook.result.current.newGame(setup));
+    act(() => hook.result.current.queueSurvey(custom!.id));
+    act(() => hook.result.current.startNextRound());
+    expect(hook.result.current.canSwapQuestion).toBe(true);
+
+    act(() => hook.result.current.swapQuestion());
+    expect(hook.result.current.lastError).toBeNull();
+    expect(hook.result.current.state!.round!.survey.id).not.toBe(custom!.id);
+  });
+
+  const LOSE_ROUND = [
+    { type: "buzz", team: 0 },
+    { type: "faceOffAnswer", team: 0, answer: 0 },
+    { type: "playOrPass", play: true },
+    { type: "answer", answer: null },
+    { type: "answer", answer: null },
+    { type: "answer", answer: null },
+    { type: "steal", answer: null },
+  ] as const;
+
+  it("puts a queued question back in the queue when its round's start is undone", async () => {
+    const { hook } = await ready();
+    const picked = hook.result.current.banks!.main.find((s) => s.answerCount === 7)!;
+    act(() => hook.result.current.newGame(setup));
+    act(() => hook.result.current.queueSurvey(picked.id));
+    act(() => hook.result.current.startNextRound());
+    expect(hook.result.current.queued).toBeNull();
+
+    act(() => hook.result.current.undo());
+    expect(hook.result.current.state!.round).toBeNull();
+    expect(hook.result.current.queued?.id).toBe(picked.id);
+    act(() => hook.result.current.startNextRound());
+    expect(hook.result.current.state!.round!.survey.id).toBe(picked.id);
+  });
+
+  it("asks the same question set Sudden Death question again after undoing its start", async () => {
+    const { hook } = await ready();
+    const [sd1, sd2] = hook.result.current.banks!.suddenDeath;
+    let saved = null as ReturnType<typeof hook.result.current.saveQuestionSet>;
+    act(() => {
+      saved = hook.result.current.saveQuestionSet({ id: "", name: "SD", rounds: [], suddenDeath: [sd1!.id, sd2!.id], fastMoney: [] });
+    });
+    const oneRound = {
+      ...structuredClone(DEFAULT_RULES),
+      id: "one",
+      builtIn: false,
+      rounds: [DEFAULT_RULES.rounds[0]!],
+      win: { type: "target" as const, target: 100_000 },
+    };
+    act(() => hook.result.current.newGame({ ...setup, rules: oneRound, questionSetId: saved!.id }));
+    act(() => hook.result.current.startNextRound());
+    for (const action of LOSE_ROUND) act(() => hook.result.current.apply(action));
+
+    act(() => hook.result.current.startNextRound());
+    expect(hook.result.current.state!.round!.survey.id).toBe(sd1!.id);
+    act(() => hook.result.current.undo());
+    act(() => hook.result.current.startNextRound());
+    expect(hook.result.current.state!.round!.survey.id).toBe(sd1!.id);
+  });
+
+  it("counts a question set's Fast Money questions as played", async () => {
+    const { hook } = await ready();
+    const fm = hook.result.current.banks!.main.slice(200, 205).map((s) => s.id);
+    let saved = null as ReturnType<typeof hook.result.current.saveQuestionSet>;
+    act(() => {
+      saved = hook.result.current.saveQuestionSet({ id: "", name: "FM", rounds: [], suddenDeath: [], fastMoney: fm });
+    });
+    const quick = { ...structuredClone(DEFAULT_RULES), id: "quick", builtIn: false, win: { type: "target" as const, target: 1 } };
+    act(() => hook.result.current.newGame({ ...setup, rules: quick, questionSetId: saved!.id }));
+    act(() => hook.result.current.startNextRound());
+    for (const action of LOSE_ROUND) act(() => hook.result.current.apply(action));
+    expect(fm.some((id) => hook.result.current.isUsed(id))).toBe(false);
+
+    act(() => hook.result.current.startFastMoney([0, 1]));
+    expect(hook.result.current.fastMoney!.surveys.map((s) => s.id)).toEqual(fm);
+    expect(fm.every((id) => hook.result.current.isUsed(id))).toBe(true);
+  });
+});

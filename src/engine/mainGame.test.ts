@@ -453,3 +453,47 @@ describe("host corrections", () => {
     expect(s).toEqual(snapshot);
   });
 });
+
+describe("fixes from the review", () => {
+  it("ends the game when a host score correction takes a family past the target", () => {
+    let s = sweepRound(newGame(), 0); // round 1 over, nobody near 300
+    expect(s.winner).toBeNull();
+    s = run(s, { type: "adjustScore", team: 0, delta: 300 });
+    expect(s.families[0].score).toBeGreaterThanOrEqual(300);
+    expect(s.winner).toBe(0);
+    expect(nextRound(s)).toBeNull();
+  });
+
+  it("awards the round when the face-off uncovers every answer on a small hand-picked board", () => {
+    let s = run(newGame(), { type: "startRound", survey: survey(2), handPicked: true });
+    s = run(
+      s,
+      { type: "buzz", team: 0 },
+      { type: "faceOffAnswer", team: 0, answer: 1 }, // Smith says #2
+      { type: "faceOffAnswer", team: 1, answer: 0 }, // Jones beats it with #1: the board is now clear
+    );
+    expect(s.round!.slots.every((slot) => slot === "won")).toBe(true);
+    // Nothing is left to play for, so the round should be over and Jones paid.
+    expect(s.round!.phase).toBe("over");
+    expect(s.round!.winner).toBe(1);
+    expect(s.families[1].score).toBe(50);
+  });
+
+  it("a score correction mid-round leaves the winner to the end of the round", () => {
+    let s = startNext(newGame());
+    s = run(s, { type: "adjustScore", team: 0, delta: 300 });
+    expect(s.winner).toBeNull();
+  });
+
+  it("Fixed rounds: a correction after the last round decides the game, and a tie still goes to Sudden Death", () => {
+    let s = newGame(FIXED_ROUNDS_RULES);
+    for (const team of [0, 1, 0, 1, 0] as Team[]) s = winSmallRound(s, team); // 90-60
+    expect(s.winner).toBe(0);
+    s = run(s, { type: "adjustScore", team: 1, delta: 30 }); // 90-90
+    expect(s.winner).toBeNull();
+    expect(nextRound(s)).toMatchObject({ kind: "suddenDeath" });
+    s = run(s, { type: "adjustScore", team: 1, delta: 10 }); // 90-100
+    expect(s.winner).toBe(1);
+  });
+});
+

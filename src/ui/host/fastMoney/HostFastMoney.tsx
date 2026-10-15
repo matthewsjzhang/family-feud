@@ -6,7 +6,7 @@ import type { GameHost } from "../../../app/useGameHost";
 import type { FastMoneyAction } from "../../../engine/fastMoney";
 import { AnsweringPanel } from "./AnsweringPanel";
 import { FastMoneyHeader } from "./FastMoneyHeader";
-import { nextToJudge, nextToShow } from "./fastMoneyView";
+import { leftToReveal, nextToJudge, nextToShow } from "./fastMoneyView";
 import { JudgingPanel } from "./JudgingPanel";
 import { AnswerSummary, DonePanel, HandoffPanel } from "./ResultPanels";
 import { FAST_MONEY_SHORTCUTS, useFastMoneyShortcuts } from "./useFastMoneyShortcuts";
@@ -66,7 +66,12 @@ export function HostFastMoney({ host }: HostFastMoneyProps) {
       panel = <HandoffPanel host={host} fm={fm} />;
       break;
     case "done":
-      panel = <DonePanel host={host} fm={fm} />;
+      panel = (
+        <>
+          <DonePanel host={host} fm={fm} />
+          {leftToReveal(fm) && <JudgingPanel host={host} fm={fm} revealingRest />}
+        </>
+      );
       break;
   }
 

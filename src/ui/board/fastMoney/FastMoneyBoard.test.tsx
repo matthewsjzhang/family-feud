@@ -258,6 +258,23 @@ describe("result banner", () => {
     expect(banner).not.toHaveTextContent("Winner");
   });
 
+  it("steps aside while the host reveals the rest of an early win, then comes back", () => {
+    const early = createFastMoney({ ...DEFAULT_RULES.fastMoney, target: 120 }, SURVEYS, ["Ann", "Bob"]);
+    const won = run(early, { type: "startClock" }, ...P1_SAYS.map(say), judge(0, 0), judge(1, 0), judge(2, 0)); // 120
+    expect(won.outcome).toEqual({ won: true, total: 120, payout: 20000 });
+    const { rerender } = render(<FastMoneyBoard view={view(won)} eventBatch={batch({ type: "fmResult", ...won.outcome! })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Winner!");
+
+    const shown = run(won, show(3));
+    rerender(<FastMoneyBoard view={view(shown)} eventBatch={batch({ type: "fmAnswerShown", player: 0, question: 3 })} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(cell(0, 3)).toHaveTextContent("RED");
+
+    const all = run(shown, judge(3, 0), judge(4, null));
+    rerender(<FastMoneyBoard view={view(all)} eventBatch={batch({ type: "fmPoints", player: 0, question: 4, points: 0 })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("160 points");
+  });
+
   it("is there from the view alone for a board opened afterwards", () => {
     const s = run(fresh(), { type: "startClock" }, ...P1_SAYS.map(say), ...[0, 1, 2, 3, 4].map((q) => judge(q, 0)));
     render(<FastMoneyBoard view={view(s)} eventBatch={null} />);

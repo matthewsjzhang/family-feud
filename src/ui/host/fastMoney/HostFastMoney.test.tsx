@@ -215,6 +215,24 @@ describe("HostFastMoney", () => {
     expect(screen.getByRole("status")).toHaveTextContent("215 points");
   });
 
+  it("wins as soon as the total reaches 200, then lets the host reveal the rest", async () => {
+    const { user } = setup();
+    await player1Scores160(user);
+    await user.click(button("Bring out player 2 — start"));
+    await answerAll(user, ["sunscreen", "cat", "eggs", "blue", "banana"]);
+    await judgeAll(user, [1, 1]); // 160 + 25 + 30
+    expect(screen.getByRole("status")).toHaveTextContent("WON $20,000!");
+    expect(screen.getByRole("heading", { name: "Reveal the rest of Sue's answers" })).toBeInTheDocument();
+    expect(inRow(1, "#2 SUNSCREEN (25)")).toBeDisabled(); // judged before the win: fixed now
+
+    for (let q = 3; q <= 5; q++) {
+      await user.click(inRow(q, "Show answer"));
+      await user.click(inRow(q, "Not on the board"));
+    }
+    expect(screen.queryByRole("heading", { name: /Reveal the rest/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("WON $20,000!");
+  });
+
   it("undoes answers and judgements, with the button and the keyboard", async () => {
     const { user } = setup();
     await user.click(button(/Start the clock/));

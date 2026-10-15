@@ -26,16 +26,23 @@ export function passedQuestions(fm: FastMoneyState): Set<number> {
   return passed;
 }
 
+/** Judging, or revealing the rest after reaching the target early. */
+const isJudging = (fm: FastMoneyState) => fm.phase === "judging" || (fm.phase === "done" && !!fm.outcome?.won);
+
+/** Answers still to judge after an early win, revealed just for show. */
+export const leftToReveal = (fm: FastMoneyState): boolean =>
+  fm.phase === "done" && currentAnswers(fm).some((a) => a.text !== null && !a.judged);
+
 /** The next answer (in order) still waiting to go up on the board. */
 export function nextToShow(fm: FastMoneyState): number | null {
-  if (fm.phase !== "judging") return null;
+  if (!isJudging(fm)) return null;
   const i = currentAnswers(fm).findIndex((a) => a.text !== null && !a.shown);
   return i < 0 ? null : i;
 }
 
 /** The next answer that is up on the board but not judged yet. */
 export function nextToJudge(fm: FastMoneyState): number | null {
-  if (fm.phase !== "judging") return null;
+  if (!isJudging(fm)) return null;
   const i = currentAnswers(fm).findIndex((a) => a.text !== null && a.shown && !a.judged);
   return i < 0 ? null : i;
 }

@@ -247,6 +247,29 @@ describe("result", () => {
     expect(s.outcome).toEqual({ won: true, total: 150, payout: 10000 });
   });
 
+  it("wins the moment the total reaches the target, with answers still to judge", () => {
+    let s = playTurn(newRound(), ["a", "b", "c", "d", "e"], [0, 1, null, 3, 2]); // 100
+    s = run(s, { type: "startPlayer2" }, { type: "startClock" }, ...["v", "w", "x", "y", "z"].map(say));
+    s = run(s, judge(0, 0), judge(1, 0)); // 180
+    expect(s.phase).toBe("judging");
+    s = run(s, judge(2, 1)); // 210
+    expect(s.phase).toBe("done");
+    expect(s.outcome).toEqual({ won: true, total: 210, payout: 20000 });
+    expect(s.players[1].answers.slice(3).map((a) => a.judged)).toEqual([false, false]);
+  });
+
+  it("lets the host reveal the rest after an early win without changing the prize", () => {
+    let s = playTurn(newRound(), ["a", "b", "c", "d", "e"], [0, 1, null, 3, 2]); // 100
+    s = run(s, { type: "startPlayer2" }, { type: "startClock" }, ...["v", "w", "x", "y", "z"].map(say));
+    s = run(s, judge(0, 0), judge(1, 0), judge(2, 1)); // 210: won
+    s = run(s, { type: "showAnswer", question: 3 });
+    expect(s.players[1].answers[3]!.shown).toBe(true);
+    s = run(s, judge(3, 0), judge(4, null)); // + 40
+    expect(s.outcome).toEqual({ won: true, total: 250, payout: 20000 });
+    // Answers already judged can't be changed after the win (that could undo it): use Undo instead.
+    expect(() => run(s, judge(0, null))).toThrow();
+  });
+
   it("supports undo, e.g. after a wrong judgement", () => {
     const reduce = undoableReducer(fastMoneyReducer);
     let h = createHistory(run(newRound(), { type: "startClock" }, ...["a", "b", "c", "d", "e"].map(say)));

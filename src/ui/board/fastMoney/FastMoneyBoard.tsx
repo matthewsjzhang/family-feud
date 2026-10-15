@@ -51,6 +51,9 @@ export function FastMoneyBoard({ view, eventBatch }: FastMoneyBoardProps) {
   const { transients, endFlash } = useFastMoneyEvents(eventBatch);
   const playing = clockShown(view.phase);
   const { duplicate, timeUp, uncover } = transients;
+  // After an early win the result steps aside while the host reveals the rest, and comes back once they're all up.
+  const allJudged = view.rows.every((row) => row[view.turn]!.points !== null);
+  const showResult = view.outcome !== null && (!transients.revealingRest || allJudged);
 
   return (
     <main className="gb-root fm-root">
@@ -119,7 +122,7 @@ export function FastMoneyBoard({ view, eventBatch }: FastMoneyBoardProps) {
           )}
         </div>
 
-        {view.outcome && <FastMoneyResult outcome={view.outcome} target={view.target} celebrateKey={transients.result} />}
+        {showResult && view.outcome && <FastMoneyResult outcome={view.outcome} target={view.target} celebrateKey={transients.result} />}
       </div>
     </main>
   );

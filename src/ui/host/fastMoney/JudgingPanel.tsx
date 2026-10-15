@@ -10,19 +10,23 @@ import { currentAnswers, nextToJudge, nextToShow } from "./fastMoneyView";
 interface JudgingPanelProps {
   host: GameHost;
   fm: FastMoneyState;
+  /** After an early win: the answers still to go up, for show (they can't change the result). */
+  revealingRest?: boolean;
 }
 
-export function JudgingPanel({ host, fm }: JudgingPanelProps) {
+export function JudgingPanel({ host, fm, revealingRest = false }: JudgingPanelProps) {
   const answers = currentAnswers(fm);
   const showNext = nextToShow(fm);
   const judgeNext = nextToJudge(fm);
   return (
     <div className="hfm-panel">
       <h2 className="hfm-panel__title">
-        Judge {fm.players[fm.turn].name}'s answers
+        {revealingRest ? `Reveal the rest of ${fm.players[fm.turn].name}'s answers` : `Judge ${fm.players[fm.turn].name}'s answers`}
       </h2>
       <p className="hg-muted hfm-panel__lead">
-        Show each answer on the board, then "survey says": pick the survey answer it matches, or not on the board.
+        {revealingRest
+          ? "Optional: the target is already reached. Revealing these adds to the total but not the prize."
+          : `Show each answer on the board, then "survey says": pick the survey answer it matches, or not on the board.`}
       </p>
       {answers.map((answer, q) => (
         <JudgeRow

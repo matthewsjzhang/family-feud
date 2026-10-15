@@ -205,8 +205,12 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
   const [activeQuestionSet, setActiveQuestionSet] = useState<QuestionSet | null>(null);
   /** Surveys asked in the current game, so a set's Sudden Death list moves on to the next one. */
   const askedRef = useRef(new Set<string>());
+  /** The queued survey the current round started with, so undoing that start puts it back in the queue. */
+  const queuedStartRef = useRef<Survey | null>(null);
   /** The latest Fast Money payout in this game, kept after leaving the Fast Money screen. */
   const payoutRef = useRef(0);
+  /** Fast Money was played to the end this game: it isn't offered again. */
+  const [fastMoneyPlayed, setFastMoneyPlayed] = useState(false);
   const [history, setHistory] = useState<History<GameState> | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const historyRef = useRef(history);
@@ -246,8 +250,8 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
 
   const commitFastMoney = useCallback(
     (next: History<FastMoneyState> | null, events: BoardEvent[] = []) => {
-      const outcome = next?.present.outcome;
-      if (outcome) payoutRef.current = outcome.payout;
+      // Leaving (null) keeps the payout; undoing the last judgement takes it away again.
+      if (next) payoutRef.current = next.present.outcome?.payout ?? 0;
       setFastMoney(next);
       setLastError(null);
       broadcast(events);
@@ -340,7 +344,8 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
 
   const state = history?.present ?? null;
   const fastMoney = fmHistory?.present ?? null;
-  const canStartFastMoney = !!state && state.winner !== null && state.rules.fastMoney.enabled && !fastMoney;
+  const canStartFastMoney =
+    !!state && state.winner !== null && state.rules.fastMoney.enabled && !fastMoney && !fastMoneyPlayed;
   const upcoming = state ? nextRound(state) : null;
   const round = state?.round ?? null;
   const canSwapQuestion =
@@ -361,6 +366,8 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
           const returning = !!setup.championReturning && champion !== null;
           setActiveQuestionSet((setup.questionSetId && setStore.get(setup.questionSetId)) || null);
           askedRef.current = new Set();
+          queuedStartRef.current = null;
+          setFastMoneyPlayed(false);
           // Starting without the champions means a new group: forget the old champions.
           if (!returning && champion) {
             setChampion(null);
@@ -379,6 +386,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
       endGame() {
         setChampionTeam(null);
         championRef.current = { champion, championTeam: null };
+        setFastMoneyPlayed(false);
         commit(null);
       },
       apply,
@@ -404,6 +412,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
           const survey = handPicked ?? picker.pick({ min: next.minAnswers, max: next.maxAnswers });
           if (handPicked && !isCustomId(handPicked.id)) picker.markUsed(handPicked.id);
           if (fromQueue) setQueued(null);
+          queuedStartRef.current = fromQueue;
           askedRef.current.add(survey.id);
           apply({ type: "startRound", survey, handPicked: !!handPicked });
         } catch (error) {
@@ -420,13 +429,20 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         while (at > 0 && current.past[at - 1]!.round?.survey.id === r.survey.id) at -= 1;
         if (at === 0) return;
         const before: History<GameState> = { past: current.past.slice(0, at - 1), present: current.past[at - 1]! };
+        const up = nextRound(before.present);
+        if (!up) return;
+        // Same size as the question it replaces, unless that one was hand-picked outside the round's usual
+        // sizes (e.g. a 3-answer custom question): then any size the round allows.
+        const count = r.survey.answerCount;
+        const fits = count >= up.minAnswers && count <= up.maxAnswers;
         try {
           const survey = picker.pick({
-            min: r.survey.answerCount,
-            max: r.survey.answerCount,
+            min: fits ? count : up.minAnswers,
+            max: fits ? count : up.maxAnswers,
             exclude: [r.survey.id],
           });
           const next = reduce(before, { type: "startRound", survey });
+          askedRef.current.add(survey.id);
           commit(next, deriveEvents(null, next.present));
         } catch (error) {
           fail(error);
@@ -440,7 +456,21 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
           return;
         }
         const current = historyRef.current;
-        if (current?.past.length) commit(reduce(current, { type: "undo" }));
+        if (!current?.past.length) return;
+        const next = reduce(current, { type: "undo" });
+        // Undoing a round's start: that question wasn't asked after all, and a queued one goes back in the queue.
+        const undone = current.present.round?.survey;
+        if (undone && undone.id !== next.present.round?.survey.id) {
+          askedRef.current.delete(undone.id);
+          if (queuedStartRef.current?.id === undone.id) setQueued(queuedStartRef.current);
+          queuedStartRef.current = null;
+        }
+        // Undoing the win: the game isn't over, so its Fast Money hasn't been played either.
+        if (next.present.winner === null) {
+          setFastMoneyPlayed(false);
+          payoutRef.current = 0;
+        }
+        commit(next);
       },
       suggest(guess) {
         if (!round) return null;
@@ -471,6 +501,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         setChampionTeam(null);
         championRef.current = { champion: update.champion, championTeam: null };
         payoutRef.current = 0;
+        setFastMoneyPlayed(false);
         commit(null);
       },
       clearChampion() {
@@ -547,10 +578,12 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
           if (names.some((n) => n === undefined)) throw new Error("Pick two players from the winning family.");
           // The question set's five, if it has them; otherwise ordinary surveys from the main bank.
           const fromSet = (activeQuestionSet?.fastMoney ?? []).map(findSurvey);
-          const surveys =
-            fromSet.length === FAST_MONEY_QUESTIONS && fromSet.every((s) => s !== undefined)
-              ? (fromSet as Survey[])
-              : Array.from({ length: FAST_MONEY_QUESTIONS }, () => picker.pick({ min: 4, max: 8 }));
+          const useSet = fromSet.length === FAST_MONEY_QUESTIONS && fromSet.every((s) => s !== undefined);
+          const surveys = useSet
+            ? (fromSet as Survey[])
+            : Array.from({ length: FAST_MONEY_QUESTIONS }, () => picker.pick({ min: 4, max: 8 }));
+          // The set's bank questions count as played, so they don't come up again at random.
+          if (useSet) for (const s of surveys) if (!isCustomId(s.id)) picker.markUsed(s.id);
           const fm = createFastMoney(state.rules.fastMoney, surveys, names as string[]);
           commitFastMoney(createHistory(fm), deriveFastMoneyEvents(null, fm));
         } catch (error) {
@@ -573,6 +606,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
         return survey ? matchAnswer(survey.answers, guess) : null;
       },
       endFastMoney() {
+        if (fmRef.current?.present.outcome) setFastMoneyPlayed(true);
         commitFastMoney(null);
       },
     }),
@@ -599,6 +633,7 @@ export function useGameHost(channelFactory: () => SyncChannel = createSyncChanne
       fastMoney,
       fmHistory,
       canStartFastMoney,
+      fastMoneyPlayed,
       applyFastMoney,
       commitFastMoney,
     ],

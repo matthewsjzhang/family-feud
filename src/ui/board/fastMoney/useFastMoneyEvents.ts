@@ -18,6 +18,8 @@ export interface FastMoneyTransients {
   uncover: number | null;
   /** Set by fmResult; plays the banner's entrance. Never cleared (the banner itself comes from the view). */
   result: number | null;
+  /** An answer went up after the result: the host is revealing the rest of an early win. */
+  revealingRest: boolean;
   /** cellKey(player, question) -> key of the event that should make it glow. */
   highlight: Record<string, number>;
 }
@@ -29,6 +31,7 @@ export const NO_FM_TRANSIENTS: FastMoneyTransients = {
   timeUp: null,
   uncover: null,
   result: null,
+  revealingRest: false,
   highlight: {},
 };
 
@@ -46,9 +49,10 @@ export function applyFastMoneyEvent(t: FastMoneyTransients, event: BoardEvent, k
       return { ...t, uncover: key };
     case "fmAnswerShown":
     case "fmPoints":
-      return { ...t, highlight: { ...t.highlight, [cellKey(event.player, event.question)]: key } };
+      return { ...t, revealingRest: true, highlight: { ...t.highlight, [cellKey(event.player, event.question)]: key } };
     case "fmResult":
-      return { ...t, result: key };
+      // Comes after the batch's last fmPoints, so judging up to the result doesn't count as revealing the rest.
+      return { ...t, result: key, revealingRest: false };
     default:
       return t;
   }

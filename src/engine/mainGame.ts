@@ -175,6 +175,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "adjustScore":
       s.families[action.team].score += action.delta;
+      // A correction between rounds can decide (or undecide) the game; mid-round, the round's end decides it.
+      if (!s.round || s.round.phase === "over") s.winner = decideWinner(s);
       break;
   }
   return s;
@@ -294,7 +296,9 @@ function winFaceOff(s: GameState, round: RoundState, team: Team) {
   round.faceOff.winner = team;
   round.faceOff.turn = null;
   advanceFaceOffPlayers(s, round.faceOff);
-  round.phase = "playOrPass";
+  // A small hand-picked board can be cleared at the buzzer: nothing is left to play for.
+  if (round.slots.every((slot) => slot !== "hidden")) award(s, team);
+  else round.phase = "playOrPass";
 }
 
 function boardAnswer(s: GameState, answer: number | null) {
@@ -328,14 +332,15 @@ function award(s: GameState, team: Team) {
   s.winner = decideWinner(s);
 }
 
+/** The game's winner after a round ends or a score correction; null if play goes on. */
 function decideWinner(s: GameState): Team | null {
-  const round = s.round!;
-  if (round.kind === "suddenDeath") return round.winner;
+  const round = s.round;
+  if (round?.kind === "suddenDeath") return round.winner;
 
   const [a, b] = s.families.map((f) => f.score) as [number, number];
   const { win, rounds } = s.rules;
   if (win.type === "target") {
-    if (s.families[round.winner!].score >= win.target) return round.winner;
+    if (round?.winner != null && s.families[round.winner].score >= win.target) return round.winner;
     if (Math.max(a, b) >= win.target) return a >= b ? 0 : 1;
     return null;
   }
